@@ -1,411 +1,382 @@
 #!/usr/bin/env python3
 """
-LaunchOps Founder Edition - Main CLI
-Complete business automation system with zero guardrails.
+LaunchOps Founder Edition — CLI Entrypoint
+Build a business like an MBA would. No guardrails. Pure execution.
+
+Usage:
+  python launchops.py launch          — Run the full launch pipeline
+  python launchops.py stage <name>    — Run a single pipeline stage
+  python launchops.py status          — Show pipeline status
+  python launchops.py coach           — Start an ExecAI coaching session
+  python launchops.py funding         — Run funding readiness report
+  python launchops.py formation       — Run formation structure optimizer
+  python launchops.py paperwork       — Generate all legal documents
+  python launchops.py ip-audit        — Run IP audit
+  python launchops.py security        — Run security audit
+  python launchops.py documentary     — Generate documentary narrative
+  python launchops.py health          — Check system health
+  python launchops.py reset           — Reset pipeline state
+  python launchops.py config          — Show/edit configuration
+  python launchops.py deploy          — Deploy Docker infrastructure
+  python launchops.py stop            — Stop all Docker services
 """
 
 import sys
-import argparse
-from typing import Dict, List
 import os
 import json
+import argparse
+from typing import Dict
 from datetime import datetime
 
-# Import agents
+# Add project root to path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from core.config import LaunchOpsConfig, get_config
+from core.credentials import CredentialVault
+from core.context import SharedContext
+from core.orchestrator import AtlasOrchestrator
+from tools.llm_client import LLMClient
+from workflows.launch_pipeline import LaunchPipeline
+
+# Agents
+from agents.execai_coach import ExecAICoach
+from agents.funding_intelligence import FundingIntelligenceAgent
+from agents.paperwork_agent import PaperworkAgent
+from agents.business_builder import BusinessBuilderAgent
+from agents.documentary_tracker import DocumentaryTracker
 from agents.security_agent import SecurityAgent
-from agents.wordpress_agent import WordPressAgent
-from agents.stripe_agent import StripeAgent
-from agents.mautic_agent import MauticAgent
-from agents.paralegal_bot import ParalegalBot
 
 
-class LaunchOps:
-    """Main LaunchOps orchestrator."""
-    
-    def __init__(self):
-        self.version = "1.0.0-founder-edition"
-        self.config = self._load_config()
-        self.agents = {}
-        
-    def _load_config(self) -> Dict:
-        """Load configuration from file."""
-        config_path = os.path.expanduser('~/.launchops/config.json')
-        if os.path.exists(config_path):
-            with open(config_path, 'r') as f:
-                return json.load(f)
-        return {}
-    
-    def _save_config(self):
-        """Save configuration to file."""
-        config_dir = os.path.expanduser('~/.launchops')
-        os.makedirs(config_dir, exist_ok=True)
-        config_path = os.path.join(config_dir, 'config.json')
-        with open(config_path, 'w') as f:
-            json.dump(self.config, f, indent=2)
-    
-    def initialize_agents(self, llm_client=None):
-        """Initialize all agents."""
-        self.agents = {
-            'security': SecurityAgent(llm_client, self.config),
-            'wordpress': WordPressAgent(llm_client, self.config),
-            'stripe': StripeAgent(llm_client, self.config),
-            'mautic': MauticAgent(llm_client, self.config),
-            'paralegal': ParalegalBot(llm_client, self.config)
-        }
-    
-    def launch_business(self, business_config: Dict):
-        """
-        Launch a complete business with all services.
-        
-        This is the main automation workflow that sets up:
-        - Security (password manager)
-        - Website (WordPress)
-        - Payments (Stripe)
-        - Marketing (Mautic)
-        - Legal compliance (Paralegal Bot)
-        """
-        print("🚀 LaunchOps Founder Edition - Launching Your Business")
-        print("=" * 60)
-        print()
-        
-        business_name = business_config.get('business_name')
-        print(f"Business: {business_name}")
-        print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print()
-        
-        # Initialize agents
-        self.initialize_agents()
-        
-        results = {}
-        
-        # Phase 1: Security Setup
-        print("📍 Phase 1: Security Setup")
-        print("-" * 60)
-        security_result = self._setup_security(business_config)
-        results['security'] = security_result
-        self._print_phase_result(security_result)
-        print()
-        
-        # Phase 2: Legal Formation
-        print("📍 Phase 2: Legal Formation & Compliance")
-        print("-" * 60)
-        legal_result = self._setup_legal(business_config)
-        results['legal'] = legal_result
-        self._print_phase_result(legal_result)
-        print()
-        
-        # Phase 3: Website Setup
-        print("📍 Phase 3: Website Setup")
-        print("-" * 60)
-        website_result = self._setup_website(business_config)
-        results['website'] = website_result
-        self._print_phase_result(website_result)
-        print()
-        
-        # Phase 4: Payment Processing
-        print("📍 Phase 4: Payment Processing")
-        print("-" * 60)
-        payment_result = self._setup_payments(business_config)
-        results['payments'] = payment_result
-        self._print_phase_result(payment_result)
-        print()
-        
-        # Phase 5: Marketing Automation
-        print("📍 Phase 5: Marketing Automation")
-        print("-" * 60)
-        marketing_result = self._setup_marketing(business_config)
-        results['marketing'] = marketing_result
-        self._print_phase_result(marketing_result)
-        print()
-        
-        # Summary
-        print("=" * 60)
-        print("✅ Business Launch Complete!")
-        print("=" * 60)
-        self._print_summary(results)
-        
-        # Save results
-        self._save_launch_results(business_name, results)
-        
-        return results
-    
-    def _setup_security(self, config: Dict) -> Dict:
-        """Setup password manager and security."""
-        agent = self.agents['security']
-        
-        # Analyze requirements
-        analysis = agent.analyze(config)
-        
-        # Deploy Bitwarden
-        deploy_result = agent.execute({
-            'type': 'deploy_bitwarden',
-            'data_dir': config.get('data_dir', '/opt/launchops'),
-            'admin_email': config.get('email')
-        })
-        
-        return {
-            'success': deploy_result.get('success', False),
-            'analysis': analysis,
-            'deployment': deploy_result
-        }
-    
-    def _setup_legal(self, config: Dict) -> Dict:
-        """Setup legal formation and compliance."""
-        agent = self.agents['paralegal']
-        
-        # Generate checklist
-        checklist_result = agent.execute({
-            'type': 'generate_checklist',
-            'business_name': config.get('business_name'),
-            'state': config.get('state', 'Delaware'),
-            'entity_type': config.get('entity_type', 'LLC')
-        })
-        
-        # Generate documents
-        docs_result = agent.execute({
-            'type': 'generate_documents',
-            'business_name': config.get('business_name'),
-            'state': config.get('state', 'Delaware'),
-            'entity_type': config.get('entity_type', 'LLC')
-        })
-        
-        # Setup compliance calendar
-        calendar_result = agent.execute({
-            'type': 'compliance_calendar',
-            'formation_date': datetime.now().isoformat(),
-            'state': config.get('state', 'Delaware'),
-            'entity_type': config.get('entity_type', 'LLC')
-        })
-        
-        return {
-            'success': True,
-            'checklist': checklist_result,
-            'documents': docs_result,
-            'calendar': calendar_result
-        }
-    
-    def _setup_website(self, config: Dict) -> Dict:
-        """Setup WordPress website."""
-        agent = self.agents['wordpress']
-        
-        # Deploy WordPress
-        deploy_result = agent.execute({
-            'type': 'deploy_wordpress',
-            'domain': config.get('domain', 'localhost'),
-            'business_name': config.get('business_name'),
-            'admin_email': config.get('email'),
-            'data_dir': config.get('data_dir', '/opt/launchops')
-        })
-        
-        return {
-            'success': deploy_result.get('success', False),
-            'deployment': deploy_result
-        }
-    
-    def _setup_payments(self, config: Dict) -> Dict:
-        """Setup Stripe payment processing."""
-        agent = self.agents['stripe']
-        
-        # Analyze payment requirements
-        analysis = agent.analyze(config)
-        
-        # Guide through account creation
-        account_result = agent.execute({
-            'type': 'create_account',
-            'business_name': config.get('business_name'),
-            'email': config.get('email'),
-            'country': config.get('country', 'US')
-        })
-        
-        return {
-            'success': True,
-            'analysis': analysis,
-            'account_setup': account_result
-        }
-    
-    def _setup_marketing(self, config: Dict) -> Dict:
-        """Setup Mautic marketing automation."""
-        agent = self.agents['mautic']
-        
-        # Deploy Mautic
-        deploy_result = agent.execute({
-            'type': 'deploy_mautic',
-            'domain': config.get('domain', 'localhost'),
-            'admin_email': config.get('email'),
-            'data_dir': config.get('data_dir', '/opt/launchops')
-        })
-        
-        return {
-            'success': deploy_result.get('success', False),
-            'deployment': deploy_result
-        }
-    
-    def _print_phase_result(self, result: Dict):
-        """Print phase result."""
-        if result.get('success'):
-            print("✅ Success")
-        else:
-            print("⚠️  Needs manual steps")
-        
-        # Print key information
-        if 'deployment' in result:
-            deployment = result['deployment']
-            if 'url' in deployment:
-                print(f"   URL: {deployment['url']}")
-            if 'credentials' in deployment:
-                print("   Credentials stored in vault")
-    
-    def _print_summary(self, results: Dict):
-        """Print launch summary."""
-        print()
-        print("📊 Launch Summary:")
-        print()
-        
-        for phase, result in results.items():
-            status = "✅" if result.get('success') else "⚠️"
-            print(f"{status} {phase.title()}")
-        
-        print()
-        print("🔗 Service URLs:")
-        print()
-        
-        # Extract URLs from results
-        if 'security' in results and 'deployment' in results['security']:
-            url = results['security']['deployment'].get('url')
-            if url:
-                print(f"   Password Manager: {url}")
-        
-        if 'website' in results and 'deployment' in results['website']:
-            url = results['website']['deployment'].get('url')
-            if url:
-                print(f"   Website: {url}")
-        
-        if 'marketing' in results and 'deployment' in results['marketing']:
-            url = results['marketing']['deployment'].get('url')
-            if url:
-                print(f"   Marketing: {url}")
-        
-        print()
-        print("📝 Next Steps:")
-        print("   1. Complete manual steps listed above")
-        print("   2. Store all credentials in password manager")
-        print("   3. Review compliance calendar")
-        print("   4. Test all services")
-        print("   5. Start building your product!")
-        print()
-    
-    def _save_launch_results(self, business_name: str, results: Dict):
-        """Save launch results to file."""
-        results_dir = os.path.expanduser('~/.launchops/launches')
-        os.makedirs(results_dir, exist_ok=True)
-        
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        filename = f"{business_name.lower().replace(' ', '_')}_{timestamp}.json"
-        filepath = os.path.join(results_dir, filename)
-        
-        with open(filepath, 'w') as f:
-            json.dump({
-                'business_name': business_name,
-                'timestamp': timestamp,
-                'results': results
-            }, f, indent=2)
-        
-        print(f"📄 Results saved to: {filepath}")
+def build_system(config_path: str = None) -> dict:
+    """Build the full LaunchOps system."""
+    config = get_config()
+    cfg = config.to_dict()
+
+    # Initialize LLM client
+    llm = LLMClient(cfg.get("llm", {}))
+
+    # Initialize credential vault
+    vault = CredentialVault()
+
+    # Initialize shared context
+    context = SharedContext()
+
+    # Initialize agents
+    agents = {
+        "execai_coach": ExecAICoach(llm_client=llm, config=cfg),
+        "funding_intelligence": FundingIntelligenceAgent(llm_client=llm, config=cfg),
+        "paperwork_agent": PaperworkAgent(llm_client=llm, config=cfg),
+        "business_builder": BusinessBuilderAgent(llm_client=llm, config=cfg),
+        "documentary_tracker": DocumentaryTracker(llm_client=llm, config=cfg),
+        "security_agent": SecurityAgent(llm_client=llm, config=cfg),
+    }
+
+    # Try to load optional infrastructure agents
+    try:
+        from agents.wordpress_agent import WordPressAgent
+        agents["wordpress_agent"] = WordPressAgent(llm_client=llm, config=cfg)
+    except Exception:
+        pass
+
+    try:
+        from agents.stripe_agent import StripeAgent
+        agents["stripe_agent"] = StripeAgent(llm_client=llm, config=cfg)
+    except Exception:
+        pass
+
+    try:
+        from agents.mautic_agent import MauticAgent
+        agents["mautic_agent"] = MauticAgent(llm_client=llm, config=cfg)
+    except Exception:
+        pass
+
+    try:
+        from agents.paralegal_bot import ParalegalBot
+        agents["paralegal_bot"] = ParalegalBot(llm_client=llm, config=cfg)
+    except Exception:
+        pass
+
+    # Initialize orchestrator
+    orchestrator = AtlasOrchestrator()
+
+    # Register all agents with the orchestrator
+    for name, agent in agents.items():
+        orchestrator.register_agent(name, agent)
+
+    # Initialize pipeline
+    pipeline = LaunchPipeline(orchestrator)
+
+    return {
+        "config": cfg,
+        "llm": llm,
+        "vault": vault,
+        "context": context,
+        "agents": agents,
+        "orchestrator": orchestrator,
+        "pipeline": pipeline,
+    }
+
+
+def load_business_config() -> dict:
+    """Load business configuration from file or create default."""
+    config_path = os.path.expanduser("~/.launchops/business.json")
+    if os.path.exists(config_path):
+        with open(config_path, "r") as f:
+            return json.load(f)
+
+    default = {
+        "business_name": "",
+        "business_type": "",
+        "industry": "",
+        "description": "",
+        "problem": "",
+        "solution": "",
+        "target_customer": "",
+        "icp": "",
+        "uvp": "",
+        "revenue_model": "",
+        "pricing": "",
+        "primary_channel": "",
+        "tech_stack": "",
+        "founder_name": "",
+        "state": "",
+        "entity_type": "not_formed",
+        "has_rd_component": False,
+        "seeking_vc": False,
+        "monthly_revenue": 0,
+        "employees": 1,
+        "us_citizen_owner": True,
+        "has_code": True,
+        "has_novel_methods": False,
+        "has_brand": True,
+        "has_data": False,
+        "ai_assisted": True,
+        "has_website": False,
+        "has_contractors": False,
+        "has_advisors": False,
+        "seeking_funding": True,
+        "has_novel_ip": False,
+    }
+
+    os.makedirs(os.path.dirname(config_path), exist_ok=True)
+    with open(config_path, "w") as f:
+        json.dump(default, f, indent=2)
+
+    print(f"\n  Business config created at: {config_path}")
+    print("  Edit this file with your business details, then run 'python launchops.py launch'\n")
+    return default
+
+
+def cmd_launch(system, args):
+    business = load_business_config()
+    if not business.get("business_name"):
+        print("\n  Business config is empty!")
+        print(f"  Edit: ~/.launchops/business.json")
+        print("  Then run: python launchops.py launch\n")
+        return
+    pipeline = system["pipeline"]
+    return pipeline.run(business, skip_infra=getattr(args, "skip_infra", False))
+
+
+def cmd_stage(system, args):
+    business = load_business_config()
+    pipeline = system["pipeline"]
+    stage = getattr(args, "stage_name", None)
+    if not stage:
+        print("Usage: python launchops.py stage <stage_name>")
+        return
+    result = pipeline.run_stage(stage, business)
+    print(json.dumps(result, indent=2, default=str))
+
+
+def cmd_status(system, args):
+    pipeline = system["pipeline"]
+    status = pipeline.get_status()
+    print(f"\n{'='*60}")
+    print("  LAUNCHOPS PIPELINE STATUS")
+    print(f"{'='*60}")
+    print(f"  Progress: {status['completed']}/{status['total']} ({status['progress_pct']}%)")
+    print(f"  {'~'*50}")
+    for stage_id, info in status["stages"].items():
+        icon = "[OK]" if info["status"] == "completed" else "[!!]" if info["status"] == "failed" else "[ ]"
+        print(f"  {icon} {info['name']}")
+    print(f"{'='*60}\n")
+
+
+def cmd_coach(system, args):
+    business = load_business_config()
+    coach = system["agents"]["execai_coach"]
+    result = coach.execute({
+        "type": "coaching_session",
+        "business": business,
+        "topic": getattr(args, "topic", "general_strategy"),
+    })
+    print(json.dumps(result, indent=2, default=str))
+
+
+def cmd_funding(system, args):
+    business = load_business_config()
+    agent = system["agents"]["funding_intelligence"]
+    return agent.execute({"type": "funding_readiness_report", "business_config": business})
+
+
+def cmd_formation(system, args):
+    business = load_business_config()
+    agent = system["agents"]["funding_intelligence"]
+    return agent.execute({
+        "type": "formation_optimizer",
+        "seeking_vc": business.get("seeking_vc", False),
+        "has_rd": business.get("has_rd_component", False),
+        "business_type": business.get("business_type", "saas"),
+    })
+
+
+def cmd_paperwork(system, args):
+    business = load_business_config()
+    agent = system["agents"]["paperwork_agent"]
+    doc = getattr(args, "document", None)
+    if doc:
+        result = agent.execute({"type": f"generate_{doc}", "business": business})
+    else:
+        result = agent.execute({"type": "generate_all", "business": business})
+    print(json.dumps(result, indent=2, default=str))
+
+
+def cmd_ip_audit(system, args):
+    business = load_business_config()
+    agent = system["agents"]["paperwork_agent"]
+    result = agent.execute({"type": "ip_audit", "business": business})
+    print(json.dumps(result, indent=2, default=str))
+
+
+def cmd_security(system, args):
+    agent = system["agents"]["security_agent"]
+    result = agent.execute({"type": "audit"})
+    print(json.dumps(result, indent=2, default=str))
+
+
+def cmd_documentary(system, args):
+    agent = system["agents"]["documentary_tracker"]
+    result = agent.execute({"type": "generate_narrative"})
+    print(json.dumps(result, indent=2, default=str))
+
+
+def cmd_health(system, args):
+    llm = system["llm"]
+    health = llm.health_check()
+    print(f"\n{'='*60}")
+    print("  LAUNCHOPS SYSTEM HEALTH")
+    print(f"{'='*60}")
+    for provider, status in health.items():
+        icon = "[OK]" if status.get("available") else "[!!]"
+        model = status.get("model", "N/A")
+        error = status.get("error", "")
+        print(f"  {icon} {provider}: {model} {f'({error})' if error else ''}")
+    print(f"\n  Agents loaded: {len(system['agents'])}")
+    for name in system["agents"]:
+        print(f"    - {name}")
+    print(f"{'='*60}\n")
+
+
+def cmd_reset(system, args):
+    system["pipeline"].reset()
+    print("Pipeline state reset.")
+
+
+def cmd_config(system, args):
+    config_path = os.path.expanduser("~/.launchops/business.json")
+    if os.path.exists(config_path):
+        with open(config_path, "r") as f:
+            print(json.dumps(json.load(f), indent=2))
+    else:
+        print("No business config found. Run 'python launchops.py launch' to create one.")
+
+
+def cmd_deploy(system, args):
+    print("Deploying all Docker services...")
+    os.system("docker-compose up -d")
+    print("All services deployed!")
+
+
+def cmd_stop(system, args):
+    print("Stopping all services...")
+    os.system("docker-compose down")
+    print("All services stopped!")
 
 
 def main():
-    """Main CLI entry point."""
     parser = argparse.ArgumentParser(
-        description='LaunchOps Founder Edition - Complete Business Automation',
+        description="LaunchOps Founder Edition - Build a business like an MBA would.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Examples:
-  # Launch a new business
-  launchops launch --name "My Startup" --email "founder@example.com"
-  
-  # Deploy all services
-  launchops deploy
-  
-  # Check service status
-  launchops status
-  
-  # Get help for a specific command
-  launchops launch --help
-        """
+Commands:
+  launch          Run the full launch pipeline
+  stage <name>    Run a single pipeline stage
+  status          Show pipeline status
+  coach           Start ExecAI coaching session
+  funding         Run funding readiness report
+  formation       Run formation structure optimizer
+  paperwork       Generate legal documents
+  ip-audit        Run IP audit
+  security        Run security audit
+  documentary     Generate documentary narrative
+  health          Check system health
+  reset           Reset pipeline state
+  config          Show configuration
+  deploy          Deploy Docker infrastructure
+  stop            Stop all Docker services
+""",
     )
-    
-    parser.add_argument('--version', action='version', version='%(prog)s 1.0.0-founder-edition')
-    
-    subparsers = parser.add_subparsers(dest='command', help='Available commands')
-    
-    # Launch command
-    launch_parser = subparsers.add_parser('launch', help='Launch a new business')
-    launch_parser.add_argument('--name', required=True, help='Business name')
-    launch_parser.add_argument('--email', required=True, help='Founder email')
-    launch_parser.add_argument('--domain', help='Domain name (optional)')
-    launch_parser.add_argument('--state', default='Delaware', help='State of incorporation')
-    launch_parser.add_argument('--entity', default='LLC', choices=['LLC', 'C-Corp', 'S-Corp'], help='Entity type')
-    launch_parser.add_argument('--type', default='saas', help='Business type (saas, ecommerce, agency, etc.)')
-    
-    # Deploy command
-    deploy_parser = subparsers.add_parser('deploy', help='Deploy all services')
-    
-    # Status command
-    status_parser = subparsers.add_parser('status', help='Check service status')
-    
-    # Stop command
-    stop_parser = subparsers.add_parser('stop', help='Stop all services')
-    
-    # Restart command
-    restart_parser = subparsers.add_parser('restart', help='Restart all services')
-    
+
+    parser.add_argument("--version", action="version", version="%(prog)s 2.0.0-founder-edition")
+    parser.add_argument("command", nargs="?", default="status",
+                        choices=["launch", "stage", "status", "coach", "funding",
+                                 "formation", "paperwork", "ip-audit", "security",
+                                 "documentary", "health", "reset", "config",
+                                 "deploy", "stop"])
+    parser.add_argument("stage_name", nargs="?", default=None)
+    parser.add_argument("--document", "-d", help="Specific document to generate")
+    parser.add_argument("--topic", "-t", help="Coaching topic")
+    parser.add_argument("--skip-infra", action="store_true", help="Skip infrastructure stages")
+    parser.add_argument("--config-path", "-c", dest="config_path", help="Path to config file")
+
     args = parser.parse_args()
-    
-    if not args.command:
-        parser.print_help()
-        return
-    
-    launchops = LaunchOps()
-    
-    if args.command == 'launch':
-        business_config = {
-            'business_name': args.name,
-            'email': args.email,
-            'domain': args.domain,
-            'state': args.state,
-            'entity_type': args.entity,
-            'business_type': args.type,
-            'data_dir': '/opt/launchops'
-        }
-        
-        launchops.launch_business(business_config)
-    
-    elif args.command == 'deploy':
-        print("Deploying all services...")
-        os.system('docker-compose up -d')
-        print("✅ All services deployed!")
-        print()
-        print("Service URLs:")
-        print("  Password Manager: http://localhost:8000")
-        print("  WordPress: http://localhost:8080")
-        print("  Mautic: http://localhost:8081")
-        print("  Nextcloud: http://localhost:8082")
-        print("  Chatwoot: http://localhost:8083")
-        print("  Matomo: http://localhost:8084")
-    
-    elif args.command == 'status':
-        os.system('docker-compose ps')
-    
-    elif args.command == 'stop':
-        print("Stopping all services...")
-        os.system('docker-compose down')
-        print("✅ All services stopped!")
-    
-    elif args.command == 'restart':
-        print("Restarting all services...")
-        os.system('docker-compose restart')
-        print("✅ All services restarted!")
+
+    print("""
++--------------------------------------------------------------+
+|                                                              |
+|   LAUNCHOPS FOUNDER EDITION  v2.0                            |
+|   Build a business like an MBA would.                        |
+|   AI + Human Co-Creating GREAT Things.                       |
+|                                                              |
+|   Tier 3 - No Guardrails - Personal Edition                  |
+|                                                              |
++--------------------------------------------------------------+
+    """)
+
+    system = build_system(getattr(args, "config_path", None))
+
+    commands = {
+        "launch": cmd_launch,
+        "stage": cmd_stage,
+        "status": cmd_status,
+        "coach": cmd_coach,
+        "funding": cmd_funding,
+        "formation": cmd_formation,
+        "paperwork": cmd_paperwork,
+        "ip-audit": cmd_ip_audit,
+        "security": cmd_security,
+        "documentary": cmd_documentary,
+        "health": cmd_health,
+        "reset": cmd_reset,
+        "config": cmd_config,
+        "deploy": cmd_deploy,
+        "stop": cmd_stop,
+    }
+
+    handler = commands.get(args.command, cmd_status)
+    handler(system, args)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

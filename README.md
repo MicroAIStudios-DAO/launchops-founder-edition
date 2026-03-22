@@ -1,366 +1,351 @@
-# LaunchOps Founder Edition
+# LaunchOps Founder Edition v2.0
 
-**Complete business automation with zero guardrails.**
+**Build a business like an MBA would. AI + Human Co-Creating GREAT Things.**
 
-LaunchOps Founder Edition is a personal automation system that launches production-ready businesses in under 2 hours. It combines AI-powered agents with open-source tools to eliminate the manual work of business setup.
+LaunchOps Founder Edition is a Tier 3, no-guardrails personal automation engine that launches production-ready businesses with MBA-grade intelligence. It combines an ExecAI coaching layer (Harvard Business School frameworks), a funding intelligence engine (VC, grants, SBIR/STTR, angel), comprehensive IP protection, legal document generation, and a full infrastructure stack — all orchestrated by the Atlas engine.
 
-## 🎯 What It Does
+This is the **solopreneur documentary edition**: every milestone, decision, and AI co-creation moment is logged and narrativized. The story writes itself as you build.
 
-LaunchOps automates the entire business launch process:
+---
 
-1. **Security Setup** - Deploys Bitwarden password manager
-2. **Legal Formation** - Generates formation documents and compliance calendar
-3. **Website Deployment** - Launches WordPress with themes and plugins
-4. **Payment Processing** - Configures Stripe for subscriptions
-5. **Marketing Automation** - Deploys Mautic for email campaigns
-6. **File Storage** - Sets up Nextcloud for documents
-7. **Customer Support** - Deploys Chatwoot for live chat
-8. **Analytics** - Installs Matomo for privacy-friendly tracking
+## What's New in v2.0
 
-## 💰 Cost Savings
+| Feature | v1.0 | v2.0 |
+|---------|------|------|
+| Agents | 5 (security, WordPress, Stripe, Mautic, paralegal) | **9+ agents** with full LLM integration |
+| Coaching | None | **ExecAI Strategic Catalyst** — HBS case method, Porter's Five Forces, Blue Ocean |
+| Funding | None | **Funding Intelligence Engine** — VC, SBIR/STTR, grants, angel, formation optimizer |
+| Legal/IP | Basic paralegal checklist | **Full IP Protection Protocol** — NDA, CIIA, IP Assignment, Trade Secrets, Privacy Policy, ToS |
+| Business Planning | None | **Business Builder** — Build Spec intake, BMC, competitive analysis, pricing, 90-day ops plan |
+| Documentary | None | **Solopreneur Documentary Tracker** — milestone logging, narrative generation |
+| Orchestrator | Simple sequential | **Atlas Orchestrator** — stage-aware pipeline with hooks and error recovery |
+| Configuration | Flat env vars | **Dataclass config** with env loading, JSON persistence, encrypted credential vault |
+| LLM Support | Optional | **Required** — OpenAI + Anthropic with auto-fallback |
+| Pipeline | 5 phases | **20-stage launch pipeline** |
 
-| Traditional Stack | LaunchOps Stack | Savings |
-|-------------------|-----------------|---------|
-| $12,000/year | $315/year | **$11,685/year (97%)** |
+---
 
-## 🚀 Quick Start
+## Architecture
+
+```
+launchops-founder-edition/
+├── launchops.py              # CLI entrypoint — 16 commands
+├── core/
+│   ├── config.py             # LaunchOpsConfig dataclass + env loading
+│   ├── credentials.py        # Fernet-encrypted credential vault
+│   ├── context.py            # Shared context for all agents
+│   └── orchestrator.py       # Atlas orchestrator — stage pipeline
+├── agents/
+│   ├── base.py               # BaseAgent with LLM integration
+│   ├── execai_coach.py       # ExecAI Strategic Catalyst (HBS frameworks)
+│   ├── funding_intelligence.py # VC/grant/SBIR funding engine
+│   ├── paperwork_agent.py    # IP protection + legal document generation
+│   ├── business_builder.py   # Build Spec, BMC, GTM, pricing, ops plan
+│   ├── documentary_tracker.py # Solopreneur documentary engine
+│   ├── security_agent.py     # Server hardening + Bitwarden
+│   ├── wordpress_agent.py    # WordPress + WooCommerce deployment
+│   ├── stripe_agent.py       # Stripe payment configuration
+│   ├── mautic_agent.py       # Marketing automation
+│   └── paralegal_bot.py      # Formation checklist + compliance
+├── tools/
+│   ├── llm_client.py         # Unified OpenAI/Anthropic client
+│   └── web_navigator.py      # Playwright browser automation
+├── workflows/
+│   └── launch_pipeline.py    # 20-stage master launch pipeline
+├── docs/
+│   └── ARCHITECTURE_V2.md    # Detailed architecture documentation
+├── docker-compose.yml        # Full infrastructure stack
+├── requirements.txt          # Python dependencies
+├── setup.py                  # pip install support
+└── .env.example              # Environment variable template
+```
+
+---
+
+## Quick Start
 
 ### Prerequisites
 
-- Linux machine (Ubuntu 22.04+ recommended)
-- Docker and Docker Compose installed
-- Python 3.8+ installed
+- Python 3.10+
+- Docker and Docker Compose (for infrastructure services)
+- At least one LLM API key (OpenAI or Anthropic)
 - 4GB RAM minimum, 8GB recommended
-- 50GB disk space
 
 ### Installation
 
 ```bash
-# Clone repository
+# Clone
 git clone https://github.com/MicroAIStudios-DAO/launchops-founder-edition.git
 cd launchops-founder-edition
 
-# Install Python dependencies
+# Install dependencies
 pip install -r requirements.txt
 
-# Create environment file
+# Configure environment
 cp .env.example .env
-# Edit .env and set your passwords
+# Edit .env — at minimum set OPENAI_API_KEY or ANTHROPIC_API_KEY
 
-# Deploy all services
-./launchops.py deploy
+# Verify installation
+python launchops.py health
 ```
 
-### Launch Your First Business
+### Configure Your Business
 
 ```bash
-./launchops.py launch \\
-  --name "My Startup" \\
-  --email "founder@example.com" \\
-  --domain "mystartup.com" \\
-  --state "Delaware" \\
-  --entity "LLC" \\
-  --type "saas"
+# This creates ~/.launchops/business.json
+python launchops.py launch
+
+# Edit the business config with your details
+nano ~/.launchops/business.json
 ```
 
-This single command will:
-- ✅ Deploy password manager
-- ✅ Generate legal formation documents
-- ✅ Setup WordPress website
-- ✅ Configure Stripe payments
-- ✅ Deploy marketing automation
-- ✅ Create compliance calendar
-- ✅ Store all credentials securely
+Fill in your business details:
 
-**Total time: < 2 hours** (vs. 40-80 hours manually)
+```json
+{
+  "business_name": "Your Company Name",
+  "business_type": "saas",
+  "industry": "technology",
+  "description": "What your company does",
+  "problem": "The problem you solve",
+  "solution": "Your solution",
+  "target_customer": "Who you serve",
+  "revenue_model": "subscription",
+  "founder_name": "Your Name",
+  "state": "Delaware",
+  "entity_type": "not_formed",
+  "has_rd_component": true,
+  "seeking_vc": true,
+  "seeking_funding": true,
+  "has_code": true,
+  "has_brand": true,
+  "ai_assisted": true
+}
+```
 
-## 📦 Included Services
-
-### Core Stack
-
-| Service | Purpose | Port | Open Source |
-|---------|---------|------|-------------|
-| **Bitwarden** | Password Manager | 8000 | ✅ MIT |
-| **WordPress** | Website & CMS | 8080 | ✅ GPL |
-| **Nextcloud** | File Storage | 8082 | ✅ AGPL |
-| **Chatwoot** | Customer Support | 8083 | ✅ MIT |
-| **Mautic** | Marketing Automation | 8081 | ✅ GPL |
-| **Matomo** | Analytics | 8084 | ✅ GPL |
-
-### External Services
-
-| Service | Purpose | Cost | Setup |
-|---------|---------|------|-------|
-| **Stripe** | Payments | 2.9% + 30¢ | Automated guidance |
-| **Zoho Mail** | Email | Free tier | DNS configuration |
-| **Vercel** | Hosting (optional) | Free tier | CLI integration |
-
-## 🤖 AI Agents
-
-LaunchOps includes 5 specialized agents:
-
-### 1. Security Agent
-- Deploys Bitwarden password manager
-- Generates secure passwords
-- Configures 2FA policies
-- Manages credential vault
-
-### 2. WordPress Agent
-- Deploys WordPress with Docker
-- Installs themes and plugins
-- Configures SSL certificates
-- Optimizes performance
-- Sets up SEO basics
-
-### 3. Stripe Agent
-- Guides through account creation
-- Configures webhooks
-- Creates subscription tiers
-- Sets up payment links
-- Handles billing automation
-
-### 4. Mautic Agent
-- Deploys marketing automation
-- Configures email sending (SMTP)
-- Creates email templates
-- Sets up lead scoring
-- Builds campaign workflows
-- Installs website tracking
-
-### 5. Paralegal Bot
-- Generates formation checklist
-- Creates legal documents
-- Tracks compliance deadlines
-- Guides through EIN application
-- Manages license renewals
-- Monitors filing requirements
-
-## 📋 Commands
-
-### Service Management
+### Launch
 
 ```bash
-# Deploy all services
-./launchops.py deploy
+# Run the full 20-stage pipeline
+python launchops.py launch
 
-# Check service status
-./launchops.py status
-
-# Stop all services
-./launchops.py stop
-
-# Restart all services
-./launchops.py restart
+# Or run individual stages
+python launchops.py formation     # Entity structure optimizer
+python launchops.py funding       # Funding readiness report
+python launchops.py paperwork     # Generate all legal documents
+python launchops.py coach         # ExecAI coaching session
+python launchops.py ip-audit      # IP protection audit
 ```
-
-### Business Launch
-
-```bash
-# Launch new business
-./launchops.py launch --name "Business Name" --email "email@example.com"
-
-# Launch with custom domain
-./launchops.py launch --name "My SaaS" --email "founder@example.com" --domain "mysaas.com"
-
-# Launch in specific state
-./launchops.py launch --name "My LLC" --email "founder@example.com" --state "Wyoming"
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-Create `.env` file with these variables:
-
-```bash
-# WordPress
-WORDPRESS_DB_PASSWORD=<secure_password>
-WORDPRESS_DB_ROOT_PASSWORD=<secure_password>
-
-# Mautic
-MAUTIC_DB_PASSWORD=<secure_password>
-MAUTIC_DB_ROOT_PASSWORD=<secure_password>
-
-# Nextcloud
-NEXTCLOUD_DB_PASSWORD=<secure_password>
-NEXTCLOUD_DB_ROOT_PASSWORD=<secure_password>
-NEXTCLOUD_ADMIN_PASSWORD=<secure_password>
-
-# Chatwoot
-CHATWOOT_DB_PASSWORD=<secure_password>
-CHATWOOT_SECRET_KEY=<secure_random_string>
-
-# Matomo
-MATOMO_DB_PASSWORD=<secure_password>
-MATOMO_DB_ROOT_PASSWORD=<secure_password>
-```
-
-### Data Storage
-
-All data is stored in `./data/` directory:
-
-```
-data/
-├── bitwarden/          # Password vault
-├── wordpress/          # Website files
-├── wordpress_db/       # Website database
-├── mautic/            # Marketing automation
-├── mautic_db/         # Marketing database
-├── nextcloud/         # File storage
-├── nextcloud_db/      # Files database
-├── chatwoot/          # Support data
-├── chatwoot_db/       # Support database
-├── matomo/            # Analytics data
-└── matomo_db/         # Analytics database
-```
-
-## 🎓 Usage Guide
-
-### 1. Initial Setup
-
-1. Deploy all services: `./launchops.py deploy`
-2. Wait 2-3 minutes for services to start
-3. Access each service and complete initial setup:
-   - Bitwarden: http://localhost:8000
-   - WordPress: http://localhost:8080
-   - Mautic: http://localhost:8081
-   - Nextcloud: http://localhost:8082
-   - Chatwoot: http://localhost:8083
-   - Matomo: http://localhost:8084
-
-### 2. Launch Business
-
-Run the launch command with your business details. LaunchOps will:
-- Generate all necessary documents
-- Deploy services
-- Create compliance calendar
-- Store credentials
-- Provide next steps
-
-### 3. Manual Steps
-
-Some steps require manual completion:
-- **EIN Application**: Visit IRS website (free, online, immediate)
-- **State Filing**: Submit formation documents to Secretary of State
-- **Bank Account**: Open business bank account with EIN
-- **Stripe Account**: Complete KYC verification
-- **Domain Setup**: Configure DNS records
-
-### 4. Ongoing Compliance
-
-LaunchOps generates a compliance calendar with:
-- Annual report deadlines
-- License renewal dates
-- Tax filing deadlines
-- Meeting requirements
-- Beneficial ownership updates
-
-## 🔒 Security
-
-### Founder Edition vs. Public Edition
-
-**Founder Edition (This Version)**
-- ✅ Full automation, zero guardrails
-- ✅ Credentials stored in encrypted vault
-- ✅ New accounts per business (isolation)
-- ✅ For personal use only
-
-**Public Edition (Future)**
-- ⚠️ Approval gates for sensitive operations
-- ⚠️ User provides credentials
-- ⚠️ Trust boundaries and consent flows
-- ⚠️ EPI governance enforcement
-
-### Security Best Practices
-
-1. **Credential Management**
-   - All credentials stored in Bitwarden
-   - Unique passwords per service
-   - 2FA enabled where possible
-
-2. **Data Isolation**
-   - Each business = separate accounts
-   - No credential reuse
-   - Easy to revoke/destroy
-
-3. **Access Control**
-   - Bitwarden master password required
-   - Docker containers isolated
-   - Network segmentation
-
-4. **Backups**
-   - Backup `./data/` directory regularly
-   - Export Bitwarden vault
-   - Store backups securely off-site
-
-## 🛠️ Troubleshooting
-
-### Services Won't Start
-
-```bash
-# Check Docker is running
-sudo systemctl status docker
-
-# Check logs
-docker-compose logs <service_name>
-
-# Restart services
-./launchops.py restart
-```
-
-### Port Conflicts
-
-If ports 8000-8084 are in use, edit `docker-compose.yml` to change port mappings.
-
-### Database Connection Errors
-
-```bash
-# Reset database
-docker-compose down -v
-docker-compose up -d
-```
-
-### Permission Issues
-
-```bash
-# Fix data directory permissions
-sudo chown -R $USER:$USER ./data
-```
-
-## 📚 Documentation
-
-- [Architecture Overview](docs/ARCHITECTURE.md)
-- [Tool Stack Details](docs/TOOL_STACK.md)
-- [Agent Development Guide](docs/AGENT_DEVELOPMENT.md)
-- [Deployment Guide](docs/DEPLOYMENT.md)
-- [Compliance Guide](docs/COMPLIANCE.md)
-
-## 🤝 Contributing
-
-This is a personal automation system. For the public version with governance, see [LaunchOps Public Edition](https://github.com/MicroAIStudios-DAO/launchops).
-
-## 📄 License
-
-MIT License - See [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-Built with:
-- [Vaultwarden](https://github.com/dani-garcia/vaultwarden) - Bitwarden-compatible server
-- [WordPress](https://wordpress.org/) - Content management system
-- [Mautic](https://www.mautic.org/) - Marketing automation
-- [Nextcloud](https://nextcloud.com/) - File storage
-- [Chatwoot](https://www.chatwoot.com/) - Customer support
-- [Matomo](https://matomo.org/) - Web analytics
-
-## 🔗 Links
-
-- **GitHub**: https://github.com/MicroAIStudios-DAO/launchops-founder-edition
-- **MicroAI Studios**: https://github.com/MicroAIStudios-DAO
-- **Documentation**: https://docs.microaistudios.com
 
 ---
 
-**Built with ❤️ by MicroAI Studios**
+## Commands
 
-*Empowering founders to build faster with AI automation and open-source tools.*
+| Command | Description |
+|---------|-------------|
+| `launch` | Run the full 20-stage launch pipeline |
+| `stage <name>` | Run a single pipeline stage |
+| `status` | Show pipeline progress |
+| `coach` | Start an ExecAI coaching session |
+| `funding` | Run funding readiness report |
+| `formation` | Run formation structure optimizer |
+| `paperwork` | Generate all legal documents |
+| `ip-audit` | Run IP protection audit |
+| `security` | Run security audit |
+| `documentary` | Generate documentary narrative |
+| `health` | Check system health (LLM providers, agents) |
+| `reset` | Reset pipeline state |
+| `config` | Show business configuration |
+| `deploy` | Deploy Docker infrastructure |
+| `stop` | Stop all Docker services |
+
+---
+
+## The 20-Stage Launch Pipeline
+
+| # | Stage | Agent | Description |
+|---|-------|-------|-------------|
+| 1 | Build Spec Intake | Business Builder | Define your business — problem, solution, customer |
+| 2 | Business Model Canvas | Business Builder | Full BMC generation |
+| 3 | Formation Analysis | Funding Intelligence | Optimal entity type and state for funding |
+| 4 | Funding Readiness | Funding Intelligence | Eligibility across all funding avenues |
+| 5 | IP Audit | Paperwork Agent | Identify all IP assets and protection strategies |
+| 6 | IP Assignment | Paperwork Agent | Founder-to-Entity IP assignment agreement |
+| 7 | NDA Generation | Paperwork Agent | Mutual NDA for partner/vendor conversations |
+| 8 | Trade Secret Protocol | Paperwork Agent | Document trade secrets and protections |
+| 9 | CIIA Agreement | Paperwork Agent | For future employees/contractors |
+| 10 | Privacy Policy | Paperwork Agent | GDPR/CCPA compliant |
+| 11 | Terms of Service | Paperwork Agent | Product terms of service |
+| 12 | Security Audit | Security Agent | Server hardening recommendations |
+| 13 | WordPress Deploy | WordPress Agent | Full WordPress + WooCommerce |
+| 14 | Stripe Setup | Stripe Agent | Payment processing configuration |
+| 15 | Go-to-Market | Business Builder | GTM strategy with first 100 customers plan |
+| 16 | Pricing Strategy | Business Builder | Pricing model and tier structure |
+| 17 | Competitive Analysis | Business Builder | Landscape analysis and positioning |
+| 18 | 90-Day Ops Plan | Business Builder | Week-by-week operational plan |
+| 19 | ExecAI Review | ExecAI Coach | Harvard-style strategic review |
+| 20 | Documentary | Documentary Tracker | Generate narrative from all milestones |
+
+---
+
+## Agents
+
+### ExecAI Strategic Catalyst
+
+Harvard Business School coaching methodology. Provides strategic guidance using:
+
+- **Porter's Five Forces** — competitive analysis
+- **Blue Ocean Strategy** — market creation
+- **Jobs-to-Be-Done** — customer insight
+- **Lean Startup** — build-measure-learn
+- **Business Model Canvas** — business design
+- **OKR Framework** — goal setting
+- **First Principles** — fundamental reasoning
+
+### Funding Intelligence Engine
+
+Comprehensive funding analysis covering:
+
+- **VC Readiness** — Delaware C-Corp, traction metrics, pitch deck readiness
+- **SBIR/STTR** — R&D component validation, agency matching
+- **Federal Grants** — NSF, NIH, DOE, DOD eligibility
+- **State Grants** — state-specific programs
+- **Angel Investment** — network readiness, valuation guidance
+- **Revenue-Based Financing** — MRR requirements
+- **Formation Optimizer** — entity type and state selection for maximum funding eligibility
+
+### Paperwork Agent (IP Protection)
+
+Full legal document generation using GPT-4o/Claude:
+
+- IP Audit and Protection Strategy
+- IP Assignment Agreement (Founder to Entity)
+- Mutual NDA
+- CIIA (Confidential Information and Inventions Assignment)
+- Trade Secret Documentation Protocol
+- Privacy Policy (GDPR/CCPA)
+- Terms of Service
+- Provisional Patent Application Guidance
+- Trademark Search Guidance
+
+### Business Builder
+
+MBA-grade business planning:
+
+- Build Spec Intake (YOUR business, not 31 ideas)
+- Business Model Canvas
+- Go-to-Market Strategy
+- Pricing Strategy
+- Competitive Analysis
+- 90-Day Operational Plan
+
+### Documentary Tracker
+
+Every milestone logged. Every AI co-creation moment captured. The documentary writes itself:
+
+- Milestone logging by category (formation, IP, funding, product, revenue, etc.)
+- AI co-creation moment highlighting
+- Narrative generation
+- Chapter generation by phase
+- Full documentary export
+
+---
+
+## Cost Savings
+
+| Traditional Stack | LaunchOps Stack | Savings |
+|-------------------|-----------------|---------|
+| MBA Consultant: $5,000+ | ExecAI Coach: $0 | **$5,000** |
+| Lawyer (formation + IP): $3,000+ | Paperwork Agent: $0 | **$3,000** |
+| Funding Consultant: $2,000+ | Funding Intelligence: $0 | **$2,000** |
+| SaaS Stack: $12,000/yr | Docker Self-Hosted: $315/yr | **$11,685/yr** |
+| **Total Year 1**: $22,000+ | **Total Year 1**: $315 + LLM costs | **97% savings** |
+
+---
+
+## Security
+
+### Founder Edition (This Version)
+
+- Full automation, zero guardrails — Tier 3 personal execution
+- Fernet-encrypted credential vault (AES-128-CBC)
+- All data stored locally in `~/.launchops/`
+- No cloud dependencies for sensitive data
+- Credentials never leave the machine
+
+### Public Edition (Future — Founder Autopilot)
+
+- Trust boundary and permission system (ExecAI governance)
+- User consent flows for sensitive operations
+- Multi-tenant isolation
+- Audit logging
+
+---
+
+## Data Storage
+
+All data persists in `~/.launchops/`:
+
+```
+~/.launchops/
+├── config.json           # System configuration
+├── business.json         # Business configuration
+├── pipeline_state.json   # Pipeline progress
+├── credentials/
+│   ├── vault.enc         # Encrypted credential vault
+│   └── vault.key         # Encryption key
+├── data/                 # Agent data
+├── documents/            # Generated legal documents
+├── documentary/
+│   ├── timeline.json     # All milestones
+│   ├── narrative.md      # Generated narrative
+│   └── export/           # Documentary export
+└── logs/                 # System logs
+```
+
+---
+
+## Troubleshooting
+
+### LLM Not Connected
+
+```bash
+# Check health
+python launchops.py health
+
+# Verify API key is set
+echo $OPENAI_API_KEY
+```
+
+### Pipeline Stuck
+
+```bash
+# Check status
+python launchops.py status
+
+# Reset and re-run
+python launchops.py reset
+python launchops.py launch
+```
+
+### Docker Services Won't Start
+
+```bash
+sudo systemctl status docker
+docker-compose logs <service_name>
+python launchops.py deploy
+```
+
+---
+
+## Links
+
+- **GitHub**: https://github.com/MicroAIStudios-DAO/launchops-founder-edition
+- **MicroAI Studios**: https://github.com/MicroAIStudios-DAO
+- **Founder Autopilot (Public Edition)**: Coming soon
+
+---
+
+**Built by MicroAI Studios. Co-created with AI.**
+
+*AI + Human Co-Creating GREAT Things.*
