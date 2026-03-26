@@ -1,0 +1,123 @@
+version: "3.8"
+
+# ============================================================================
+# LaunchOps Founder Edition — Architecture Gap Expansion Overlay
+#
+# Purpose:
+#   This overlay adds a conservative subset of the missing self-hosted services
+#   from the uploaded "Complete Tool Stack Architecture" blueprint without
+#   destabilizing the existing core stack.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.expansion.yml --profile ops --profile docs --profile contracts up -d
+#
+# Profiles:
+#   ops        -> Node-RED, Uptime Kuma
+#   docs       -> BookStack
+#   contracts  -> DocuSeal
+#
+# Notes:
+#   - This file intentionally does NOT try to inline heavier stacks such as
+#     OpenProject, Mattermost, Jitsi, SuiteCRM, or Cal.com. Those remain in the
+#     backlog because their official production deployments are multi-file and/or
+#     materially more complex than the current repository baseline.
+#   - The goal is to close the highest-value deployment gaps first while keeping
+#     the repository deployable in one pass.
+# ============================================================================
+
+services:
+  # ── Ops Automation (Node-RED) ─────────────────────────────────────────────
+  nodered:
+    image: nodered/node-red:latest
+    container_name: atlas_nodered
+    restart: unless-stopped
+    ports:
+      - "${NODERED_PORT:-1880}:1880"
+    volumes:
+      - ./data/nodered:/data
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+    networks:
+      - atlas_network
+    profiles:
+      - ops
+
+  # ── Uptime Monitoring (Uptime Kuma) ───────────────────────────────────────
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: atlas_uptime_kuma
+    restart: unless-stopped
+    ports:
+      - "${UPTIMEKUMA_PORT:-3002}:3001"
+    volumes:
+      - ./data/uptime-kuma:/app/data
+    environment:
+      - TZ=${TZ:-Etc/UTC}
+    networks:
+      - atlas_network
+    profiles:
+      - ops
+
+  # ── Internal Wiki / SOPs (BookStack) ──────────────────────────────────────
+  bookstack:
+    image: lscr.io/linuxserver/bookstack:latest
+    container_name: atlas_bookstack
+    restart: unless-stopped
+    environment:
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
+      - TZ=${TZ:-Etc/UTC}
+      - APP_URL=${BOOKSTACK_URL:-http://localhost:6875}
+      - APP_KEY=${BOOKSTACK_APP_KEY:-base64:change_me}
+      - DB_HOST=bookstack_db
+      - DB_PORT=3306
+      - DB_USERNAME=bookstack
+      - DB_PASSWORD=${BOOKSTACK_DB_PASSWORD}
+      - DB_DATABASE=bookstack
+    volumes:
+      - ./data/bookstack:/config
+    ports:
+      - "${BOOKSTACK_PORT:-6875}:80"
+    depends_on:
+      - bookstack_db
+    networks:
+      - atlas_network
+    profiles:
+      - docs
+
+  bookstack_db:
+    image: mariadb:10.11
+    container_name: atlas_bookstack_db
+    restart: unless-stopped
+    environment:
+      - MYSQL_ROOT_PASSWORD=${BOOKSTACK_DB_ROOT_PASSWORD}
+      - MYSQL_DATABASE=bookstack
+      - MYSQL_USER=bookstack
+      - MYSQL_PASSWORD=${BOOKSTACK_DB_PASSWORD}
+    volumes:
+      - ./data/bookstack_db:/var/lib/mysql
+    networks:
+      - atlas_network
+    profiles:
+      - docs
+
+  # ── E-Signature / Contract Automation (DocuSeal) ─────────────────────────
+  docuseal:
+    image: docuseal/docuseal:latest
+    container_name: atlas_docuseal
+    restart: unless-stopped
+    ports:
+      - "${DOCUSEAL_PORT:-3005}:3000"
+    volumes:
+      - ./data/docuseal:/data
+    environment:
+      - FORCE_SSL=${DOCUSEAL_FORCE_SSL:-false}
+    networks:
+      - atlas_network
+    profiles:
+      - contracts
+
+networks:
+  atlas_network:
+    external: true
+    name: atlas_network
