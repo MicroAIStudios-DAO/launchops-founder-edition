@@ -22,7 +22,7 @@ class LLMClient:
         self.openai_base = config.get("openai_api_base") or os.environ.get("OPENAI_API_BASE", "")
         self.anthropic_key = config.get("anthropic_api_key") or os.environ.get("ANTHROPIC_API_KEY", "")
         self.primary = config.get("primary_provider", "openai")
-        self.model_openai = config.get("openai_model", "gpt-4o")
+        self.model_openai = config.get("openai_model") or os.environ.get("OPENAI_MODEL", "gpt-4.1-mini")
         self.model_anthropic = config.get("anthropic_model", "claude-3-5-sonnet-20241022")
         self.max_tokens = config.get("max_tokens", 4096)
         self.temperature = config.get("temperature", 0.7)

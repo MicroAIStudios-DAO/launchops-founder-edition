@@ -93,6 +93,9 @@ def build_system(config_path: str = None) -> dict:
             pass
 
     # Load new pipeline agents (Founder OS, DynExecutiv, Content Engine, Metrics)
+    # These agents expect a raw OpenAI client (with .chat.completions.create),
+    # not the LLMClient wrapper. Pass the underlying openai_client directly.
+    raw_openai = getattr(llm, 'openai_client', None)
     new_agents = {
         "founder_os": "agents.founder_os.FounderOSAgent",
         "dynexecutiv": "agents.dynexecutiv.DynExecutivAgent",
@@ -105,9 +108,9 @@ def build_system(config_path: str = None) -> dict:
             import importlib
             mod = importlib.import_module(module_name)
             cls = getattr(mod, class_name)
-            agents[agent_name] = cls(llm_client=llm, config=cfg)
-        except Exception:
-            pass
+            agents[agent_name] = cls(llm_client=raw_openai, config=cfg)
+        except Exception as e:
+            print(f"  Warning: Could not load {agent_name}: {e}")
 
     # Initialize orchestrator
     orchestrator = AtlasOrchestrator()

@@ -82,13 +82,28 @@ class BaseAgent(ABC):
     # ── LLM ───────────────────────────────────────────────────────────────
 
     def _call_llm(self, system: str, user: str, **kwargs) -> str:
-        """Call the LLM. Works with OpenAI or Anthropic clients."""
+        """Call the LLM. Works with LLMClient wrapper, raw OpenAI, or Anthropic clients."""
         if self.llm_client is None:
             return "[LLM not configured — set OPENAI_API_KEY or ANTHROPIC_API_KEY]"
         try:
-            if hasattr(self.llm_client, "chat"):
+            # Detect LLMClient wrapper (has a callable .chat method, not an object)
+            # LLMClient.chat is a method that takes (system, user, ...) directly
+            if callable(getattr(self.llm_client, "chat", None)) and not hasattr(
+                self.llm_client.chat, "completions"
+            ):
+                # This is our LLMClient wrapper — call .chat(system, user) directly
+                return self.llm_client.chat(
+                    system=system,
+                    user=user,
+                    model=kwargs.get("model") or self.config.get("model"),
+                    max_tokens=kwargs.get("max_tokens"),
+                    temperature=kwargs.get("temperature"),
+                )
+            elif hasattr(self.llm_client, "chat") and hasattr(self.llm_client.chat, "completions"):
+                # Raw OpenAI client
+                model = kwargs.get("model") or self.config.get("model") or "gpt-4.1-mini"
                 resp = self.llm_client.chat.completions.create(
-                    model=kwargs.get("model", self.config.get("model", "gpt-4o")),
+                    model=model,
                     messages=[
                         {"role": "system", "content": system},
                         {"role": "user", "content": user},
@@ -98,8 +113,9 @@ class BaseAgent(ABC):
                 )
                 return resp.choices[0].message.content
             elif hasattr(self.llm_client, "messages"):
+                # Raw Anthropic client
                 resp = self.llm_client.messages.create(
-                    model=kwargs.get("model", self.config.get("model", "claude-sonnet-4-20250514")),
+                    model=kwargs.get("model") or self.config.get("model") or "claude-3-5-sonnet-20241022",
                     system=system,
                     messages=[{"role": "user", "content": user}],
                     max_tokens=kwargs.get("max_tokens", 4096),
