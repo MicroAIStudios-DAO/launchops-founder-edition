@@ -3,31 +3,29 @@
 # Repo: MicroAIStudios-DAO/launchops-founder-edition
 #
 # Triggers on push to master branch.
-# SSHs into Hetzner VPS, pulls latest code, rebuilds and
+# SSHs into a DigitalOcean Droplet (Ubuntu 22.04), writes
+# .env from GitHub Secrets, pulls latest code, rebuilds and
 # restarts the full Docker Compose stack, then runs health
 # checks to confirm all services are live.
 #
 # Required GitHub Secrets (Settings → Secrets → Actions):
-#   VPS_HOST          — Hetzner server IPv4 address
+#   VPS_HOST          — Droplet public IPv4 address
 #   VPS_USER          — SSH login user (root or ubuntu)
 #   VPS_SSH_KEY       — Private SSH key (PEM format, full content)
-#   VPS_DEPLOY_PATH   — Absolute path to repo on VPS (e.g. /opt/launchops)
+#   VPS_DEPLOY_PATH   — Absolute path to repo on Droplet (e.g. /opt/launchops)
 #   OPENAI_API_KEY    — OpenAI API key for LLM agents
 #   DB_PASSWORD       — MariaDB user password
 #   DB_ROOT_PASSWORD  — MariaDB root password
 #   VAULT_ADMIN_TOKEN — Vaultwarden admin token
 # ============================================================
 
-name: Deploy to Hetzner VPS
+name: Deploy to DigitalOcean Droplet
 
 on:
   push:
     branches:
       - master
   workflow_dispatch:        # allow manual trigger from GitHub UI
-
-env:
-  DEPLOY_PATH: ${{ secrets.VPS_DEPLOY_PATH }}
 
 jobs:
   deploy:
@@ -36,7 +34,7 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      # ── 1. Checkout (for context; actual deploy runs on VPS) ──────────────
+      # ── 1. Checkout (for context; actual deploy runs on Droplet) ──────────
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -58,7 +56,7 @@ jobs:
           fi
           echo "✅ All required secrets present."
 
-      # ── 3. Write .env file to VPS and deploy ──────────────────────────────
+      # ── 3. Write .env file to Droplet and deploy ──────────────────────────
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -111,13 +109,12 @@ jobs:
             check_service() {
               local name=$1
               local url=$2
-              local expected_code=${3:-200}
               local code
               code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 "$url" || echo "000")
-              if [ "$code" = "$expected_code" ] || [ "$code" = "302" ] || [ "$code" = "301" ]; then
+              if [ "$code" = "200" ] || [ "$code" = "302" ] || [ "$code" = "301" ]; then
                 echo "  ✅ $name → HTTP $code"
               else
-                echo "  ⚠️  $name → HTTP $code (expected $expected_code) — may still be starting"
+                echo "  ⚠️  $name → HTTP $code (may still be starting)"
               fi
             }
 
@@ -143,7 +140,7 @@ jobs:
         run: |
           echo "❌ Deploy failed. Check the SSH step logs above."
           echo "Common causes:"
-          echo "  - VPS unreachable (check Hetzner firewall / server status)"
+          echo "  - Droplet unreachable (check DigitalOcean console / firewall)"
           echo "  - SSH key mismatch (regenerate and update VPS_SSH_KEY secret)"
-          echo "  - Docker Compose error (SSH into VPS and run: docker compose logs)"
+          echo "  - Docker Compose error (SSH into Droplet and run: docker compose logs)"
           exit 1
