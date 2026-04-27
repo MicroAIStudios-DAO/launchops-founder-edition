@@ -1,29 +1,30 @@
-# DigitalOcean Droplet Quickstart — LaunchOps Founder Edition
+# Vultr Cloud Compute Quickstart — LaunchOps Founder Edition
 
-**Target:** Ubuntu 22.04 LTS on a DigitalOcean Droplet, running the full LaunchOps stack via Docker Compose with automated GitHub Actions deploys on every push to `master`.
+**Target:** Ubuntu 22.04 LTS on a Vultr Cloud Compute instance, running the full LaunchOps stack via Docker Compose with automated GitHub Actions deploys on every push to `master`.
 
-**Why DigitalOcean?** Instant signup with a credit card — no identity verification, no waiting period. Droplets are live in under 60 seconds. The $24/month Premium AMD Droplet (4 vCPU / 8 GB RAM) comfortably runs all 6 containers plus the LaunchOps API, and DigitalOcean's control panel is the cleanest in the industry. Vultr and Linode are solid alternatives with identical setup steps — this guide works for all three.
+**Why Vultr?** Vultr is the fastest, most straightforward VPS provider for this stack. Signup takes under 2 minutes with a credit card — no verification delays, no waiting. Instances are live in under 30 seconds. The **High Performance 4 vCPU / 8 GB RAM instance at $24/month** comfortably runs all 6 containers plus the LaunchOps API. Vultr's pricing is transparent, their API is excellent, and their control panel is minimal and fast. DigitalOcean and Linode work identically — see §13 for alternatives.
 
 ---
 
-## 1. Recommended Droplet Spec
+## 1. Recommended Instance Spec
 
 | Parameter | Recommendation | Notes |
 |---|---|---|
-| **Plan** | Premium AMD — 4 vCPU / 8 GB RAM | ~$24/month. Handles all 6 containers + API comfortably. |
-| **OS image** | Ubuntu 22.04 LTS x64 | Select under "Choose an image → OS". |
-| **Region** | New York 3 or San Francisco 3 | Pick closest to your audience. |
-| **Authentication** | SSH Key (add during creation) | See §2 below. |
-| **Backups** | Enable (20% surcharge, ~$5/mo) | Strongly recommended before first live deploy. |
+| **Product** | Cloud Compute → High Performance | 4 vCPU / 8 GB RAM / 160 GB SSD |
+| **Pricing** | $24/month (billed hourly) | Stop instance when not in use to pause billing. |
+| **OS image** | Ubuntu 22.04 LTS x64 | Select under "Operating System". |
+| **Region** | New Jersey, Los Angeles, or London | Pick closest to your audience. |
+| **SSH Key** | Add during instance creation | See §2 below. |
+| **Backups** | Enable (automatic weekly) | Included with High Performance tier. |
 | **Firewall** | Create via Networking → Firewalls | See §5 for rules. |
 
-**Estimated cost:** ~$24–29/month with backups enabled.
+**Estimated cost:** $24/month (backups included).
 
 ---
 
 ## 2. SSH Key Setup
 
-Generate a dedicated deploy key on your local machine before creating the Droplet:
+Generate a dedicated deploy key on your local machine before creating the instance:
 
 ```bash
 ssh-keygen -t ed25519 -C "launchops-deploy" -f ~/.ssh/launchops_deploy
@@ -33,43 +34,45 @@ ssh-keygen -t ed25519 -C "launchops-deploy" -f ~/.ssh/launchops_deploy
 This creates two files:
 
 - `~/.ssh/launchops_deploy` — **private key** (paste into GitHub Secret `VPS_SSH_KEY`)
-- `~/.ssh/launchops_deploy.pub` — **public key** (add to DigitalOcean)
+- `~/.ssh/launchops_deploy.pub` — **public key** (add to Vultr)
 
-**In DigitalOcean control panel:**
+**In Vultr control panel:**
 
-1. Go to **Settings → Security → SSH Keys → Add SSH Key**
+1. Go to **Account → SSH Keys → Add SSH Key**
 2. Paste the contents of `~/.ssh/launchops_deploy.pub`
 3. Name it `launchops-deploy`
-4. Select it when creating the Droplet
+4. Select it when creating the instance
 
-**Test the connection** after Droplet creation:
+**Test the connection** after instance creation:
 
 ```bash
-ssh -i ~/.ssh/launchops_deploy root@<YOUR_DROPLET_IP>
+ssh -i ~/.ssh/launchops_deploy root@<YOUR_INSTANCE_IP>
 ```
 
 ---
 
-## 3. Create the Droplet
+## 3. Create the Instance
 
-1. In the DigitalOcean control panel, click **Create → Droplets**
-2. **Region:** your choice
-3. **Image:** Ubuntu 22.04 LTS x64
-4. **Size:** Premium AMD → 4 vCPU / 8 GB RAM (~$24/mo)
-5. **Authentication:** SSH Key → select `launchops-deploy`
-6. **Hostname:** `launchops-vps`
-7. Click **Create Droplet**
+1. In the Vultr control panel, click **Deploy New Instance**
+2. **Choose Server:** Cloud Compute
+3. **Server Type:** High Performance
+4. **CPU:** Regular Performance (Intel)
+5. **Region:** your choice (New Jersey, Los Angeles, London, etc.)
+6. **Image:** Ubuntu 22.04 LTS x64
+7. **SSH Keys:** select `launchops-deploy`
+8. **Hostname & Label:** `launchops-vps`
+9. Click **Deploy Now**
 
-The Droplet will be live in under 60 seconds. Note the **public IPv4 address** — this is your `VPS_HOST` secret.
+The instance will be live in under 30 seconds. Note the **public IPv4 address** — this is your `VPS_HOST` secret.
 
 ---
 
 ## 4. Initial Server Configuration
 
-SSH into the Droplet:
+SSH into the instance:
 
 ```bash
-ssh -i ~/.ssh/launchops_deploy root@<YOUR_DROPLET_IP>
+ssh -i ~/.ssh/launchops_deploy root@<YOUR_INSTANCE_IP>
 ```
 
 Run the full setup sequence:
@@ -100,9 +103,9 @@ Docker Compose version v2.x.x
 
 ---
 
-## 5. Firewall Rules (UFW + DigitalOcean)
+## 5. Firewall Rules (UFW + Vultr)
 
-**Configure UFW on the Droplet:**
+**Configure UFW on the instance:**
 
 ```bash
 # Reset to defaults
@@ -127,7 +130,7 @@ ufw --force enable
 ufw status verbose
 ```
 
-**Also configure a DigitalOcean Cloud Firewall** (sits in front of UFW, blocks at the network edge):
+**Also configure a Vultr Cloud Firewall** (sits in front of UFW, blocks at the network edge):
 
 1. Go to **Networking → Firewalls → Create Firewall**
 2. Add **Inbound** rules:
@@ -141,7 +144,7 @@ ufw status verbose
 | TCP | 5173 | All IPv4, All IPv6 | Dashboard (dev) |
 | ICMP | — | All IPv4, All IPv6 | Ping |
 
-3. Under **Apply to Droplets**, select `launchops-vps`
+3. Under **Linked Instances**, select `launchops-vps`
 4. Click **Create Firewall**
 
 > **Note:** Individual service ports (8080–8083, 8000) are intentionally **not** exposed publicly. They are accessed through Nginx reverse proxy on 80/443 once SSL is configured. You may temporarily open them for initial testing, but close them before going live.
@@ -255,10 +258,10 @@ In the GitHub repository, go to **Settings → Secrets and variables → Actions
 
 | Secret Name | Value | Description |
 |---|---|---|
-| `VPS_HOST` | `<your Droplet IPv4>` | Public IP address of the Droplet |
-| `VPS_USER` | `root` | SSH login user (DigitalOcean default) |
+| `VPS_HOST` | `<your Vultr instance IPv4>` | Public IP address of the instance |
+| `VPS_USER` | `root` | SSH login user (Vultr default) |
 | `VPS_SSH_KEY` | Contents of `~/.ssh/launchops_deploy` | Full private key including `-----BEGIN...` and `-----END...` lines |
-| `VPS_DEPLOY_PATH` | `/opt/launchops` | Absolute path to the repo on the Droplet |
+| `VPS_DEPLOY_PATH` | `/opt/launchops` | Absolute path to the repo on the instance |
 | `OPENAI_API_KEY` | `sk-...` | OpenAI API key for LLM agents |
 | `DB_PASSWORD` | `your_db_password` | MariaDB user password |
 | `DB_ROOT_PASSWORD` | `your_root_password` | MariaDB root password |
@@ -277,12 +280,12 @@ Once secrets are configured, every push to `master` triggers an automated deploy
 git push origin master
 ```
 
-Or go to **Actions → Deploy to DigitalOcean Droplet → Run workflow** in the GitHub UI.
+Or go to **Actions → Deploy to Vultr Cloud Compute → Run workflow** in the GitHub UI.
 
 The workflow will:
 
 1. Validate all 8 secrets are present
-2. SSH into the Droplet
+2. SSH into the instance
 3. Write `.env` from secrets
 4. `git reset --hard origin/master`
 5. `docker compose pull && docker compose up -d --remove-orphans`
@@ -315,11 +318,11 @@ Once the stack is confirmed working, add Nginx as a reverse proxy with Let's Enc
 ```bash
 apt install -y nginx certbot python3-certbot-nginx
 
-# Point your domain DNS A record to <YOUR_DROPLET_IP> first, then:
+# Point your domain DNS A record to <YOUR_INSTANCE_IP> first, then:
 certbot --nginx -d yourdomain.com -d api.yourdomain.com
 ```
 
-For `thesolopreneur.ai`, point the DNS A record to your Droplet IP in your domain registrar's control panel, then run certbot to get a free SSL certificate.
+For `thesolopreneur.ai`, point the DNS A record to your Vultr instance IP in your domain registrar's control panel, then run certbot to get a free SSL certificate.
 
 ---
 
@@ -329,12 +332,12 @@ This guide and the GitHub Actions workflow are provider-agnostic — the SSH dep
 
 | Provider | Equivalent Tier | Monthly Cost | Notes |
 |---|---|---|---|
-| **DigitalOcean** | Premium AMD 4vCPU/8GB | ~$24 | **Recommended** — fastest signup, cleanest UI |
-| **Vultr** | High Performance 4vCPU/8GB | ~$24 | Identical to DO, slightly more regions |
-| **Linode (Akamai)** | Dedicated 4vCPU/8GB | ~$36 | More expensive but very stable |
-| **Contabo** | VPS S SSD | ~$6 | Cheapest option, slower support |
+| **Vultr** | High Performance 4vCPU/8GB | $24 | **Recommended** — fastest signup, live in 30 seconds |
+| **DigitalOcean** | Premium AMD 4vCPU/8GB | $24 | Excellent UI, slightly slower instance spin-up |
+| **Linode (Akamai)** | Dedicated 4vCPU/8GB | $36 | More expensive but very stable |
+| **Contabo** | VPS S SSD | $6 | Cheapest option, slower support |
 
-Simply create a Droplet/instance on any of these, follow steps §2–§8, and the same GitHub Actions workflow will deploy to it without modification.
+Simply create an instance on any of these, follow steps §2–§8, and the same GitHub Actions workflow will deploy to it without modification.
 
 ---
 

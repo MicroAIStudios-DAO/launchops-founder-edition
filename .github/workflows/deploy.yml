@@ -3,23 +3,23 @@
 # Repo: MicroAIStudios-DAO/launchops-founder-edition
 #
 # Triggers on push to master branch.
-# SSHs into a DigitalOcean Droplet (Ubuntu 22.04), writes
+# SSHs into a Vultr Cloud Compute instance (Ubuntu 22.04), writes
 # .env from GitHub Secrets, pulls latest code, rebuilds and
 # restarts the full Docker Compose stack, then runs health
 # checks to confirm all services are live.
 #
 # Required GitHub Secrets (Settings → Secrets → Actions):
-#   VPS_HOST          — Droplet public IPv4 address
+#   VPS_HOST          — Vultr instance public IPv4 address
 #   VPS_USER          — SSH login user (root or ubuntu)
 #   VPS_SSH_KEY       — Private SSH key (PEM format, full content)
-#   VPS_DEPLOY_PATH   — Absolute path to repo on Droplet (e.g. /opt/launchops)
+#   VPS_DEPLOY_PATH   — Absolute path to repo on instance (e.g. /opt/launchops)
 #   OPENAI_API_KEY    — OpenAI API key for LLM agents
 #   DB_PASSWORD       — MariaDB user password
 #   DB_ROOT_PASSWORD  — MariaDB root password
 #   VAULT_ADMIN_TOKEN — Vaultwarden admin token
 # ============================================================
 
-name: Deploy to DigitalOcean Droplet
+name: Deploy to Vultr Cloud Compute
 
 on:
   push:
@@ -140,7 +140,7 @@ jobs:
         run: |
           echo "❌ Deploy failed. Check the SSH step logs above."
           echo "Common causes:"
-          echo "  - Droplet unreachable (check DigitalOcean console / firewall)"
+          echo "  - Instance unreachable (check Vultr console / firewall)"
           echo "  - SSH key mismatch (regenerate and update VPS_SSH_KEY secret)"
-          echo "  - Docker Compose error (SSH into Droplet and run: docker compose logs)"
+          echo "  - Docker Compose error (SSH into instance and run: docker compose logs)
           exit 1
