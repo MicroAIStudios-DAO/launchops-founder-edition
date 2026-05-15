@@ -145,5 +145,5 @@ jobs:
           echo "Common causes:"
           echo "  - Instance unreachable (check Vultr console / firewall)"
           echo "  - SSH key mismatch (regenerate and update VPS_SSH_KEY secret)"
-          echo "  - Docker Compose error (SSH into instance and run: docker compose logs)
+          echo "  - Docker Compose error (SSH into instance and run: docker compose logs)"
           exit 1
