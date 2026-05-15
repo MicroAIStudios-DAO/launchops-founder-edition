@@ -1,7 +1,21 @@
-version: '3.8'
+# =============================================================================
+#  LaunchOps Founder Edition — Docker Compose Stack
+#  Services: WordPress · SuiteCRM · Mautic · Matomo · Vaultwarden
+#  Docs: docs/VPS_QUICKSTART.md
+# =============================================================================
+#
+#  NOTE: The `version` field is intentionally omitted — it is obsolete in
+#  Docker Compose v2+ and causes a warning if present.
+#
+#  SuiteCRM image: bertschiweb/suitecrm (community-maintained, based on
+#  liteart/docker-suitecrm). Replaces the deprecated bitnami/suitecrm image
+#  which was removed from Docker Hub on August 28, 2025 when Bitnami/Broadcom
+#  ended free image distribution.
+#  Ref: https://github.com/liteart/docker-suitecrm
+# =============================================================================
 
 services:
-  # 1. WordPress (Site + Course)
+  # 1. WordPress (Site + Course + WooCommerce)
   wordpress:
     image: wordpress:latest
     container_name: launchops_wordpress
@@ -21,7 +35,7 @@ services:
       - db
 
   db:
-    image: mariadb:10.64
+    image: mariadb:10.6
     container_name: launchops_db
     restart: always
     environment:
@@ -33,28 +47,42 @@ services:
       - ./data/mysql:/var/lib/mysql
     networks:
       - launchops_net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
-  # 2. SuiteCRM (Pipeline)
+  # 2. SuiteCRM (Pipeline / CRM)
+  #    Image: bertschiweb/suitecrm — community-maintained SuiteCRM 7.x
+  #    Source: https://github.com/liteart/docker-suitecrm
+  #    Hub:    https://hub.docker.com/r/bertschiweb/suitecrm
+  #
+  #    FIRST-RUN SETUP: On first boot, navigate to http://<host>:8081 and
+  #    complete the browser-based setup wizard. Use the following values:
+  #      DB Host:     db
+  #      DB Name:     suitecrm
+  #      DB User:     wpuser
+  #      DB Password: (value of DB_PASSWORD in .env)
+  #
+  #    The container runs Apache on internal port 80, exposed as 8081.
   suitecrm:
-    image: bitnami/suitecrm:latest
+    image: bertschiweb/suitecrm:latest
     container_name: launchops_suitecrm
     restart: always
     ports:
-      - "8081:8080"
-    environment:
-      - MARIADB_HOST=db
-      - MARIADB_PORT_NUMBER=3306
-      - SUITECRM_DATABASE_USER=wpuser
-      - SUITECRM_DATABASE_PASSWORD=${DB_PASSWORD:-securepassword123}
-      - SUITECRM_DATABASE_NAME=suitecrm
+      - "8081:80"
     volumes:
-      - ./data/suitecrm:/bitnami/suitecrm
+      - ./data/suitecrm/upload:/var/www/html/upload
+      - ./data/suitecrm/conf.d:/var/www/html/conf.d
     networks:
       - launchops_net
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
-  # 3. Mautic (Email + Automations)
+  # 3. Mautic (Email + Marketing Automations)
   mautic:
     image: mautic/mautic:v4-apache
     container_name: launchops_mautic
@@ -71,9 +99,10 @@ services:
     networks:
       - launchops_net
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
-  # 4. Matomo (Analytics)
+  # 4. Matomo (Privacy-First Analytics)
   matomo:
     image: matomo:latest
     container_name: launchops_matomo
@@ -90,9 +119,10 @@ services:
     networks:
       - launchops_net
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
-  # 5. Vaultwarden (Bitwarden Credentials)
+  # 5. Vaultwarden (Self-Hosted Bitwarden / Credential Vault)
   vaultwarden:
     image: vaultwarden/server:latest
     container_name: launchops_vaultwarden
@@ -108,7 +138,8 @@ services:
     networks:
       - launchops_net
 
-  # Note: Stripe (Payments) is handled via API keys in the applications, not a local container.
+  # Note: Stripe (Payments) is handled via API keys in the applications,
+  # not a local container. Configure STRIPE_SECRET_KEY in .env.
 
 networks:
   launchops_net:

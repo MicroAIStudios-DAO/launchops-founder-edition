@@ -8,13 +8,14 @@ from fastapi import APIRouter
 
 router = APIRouter(prefix="/services", tags=["services"])
 
-# LaunchOps stack services and their expected ports/URLs
+# LaunchOps stack services and their expected ports/URLs.
+# Ports must match the host-side mappings in docker-compose.yml.
 STACK_SERVICES = [
-    {"name": "WordPress", "url": "http://localhost:8080", "port": 8080},
-    {"name": "SuiteCRM", "url": "http://localhost:8081", "port": 8081},
-    {"name": "Mautic", "url": "http://localhost:8082", "port": 8082},
-    {"name": "Matomo", "url": "http://localhost:8083", "port": 8083},
-    {"name": "Vaultwarden", "url": "http://localhost:8084", "port": 8084},
+    {"name": "WordPress",   "url": "http://localhost:8080", "port": 8080},
+    {"name": "SuiteCRM",    "url": "http://localhost:8081", "port": 8081},
+    {"name": "Mautic",      "url": "http://localhost:8082", "port": 8082},
+    {"name": "Matomo",      "url": "http://localhost:8083", "port": 8083},
+    {"name": "Vaultwarden", "url": "http://localhost:8000", "port": 8000},  # fixed: was 8084
 ]
 
 
@@ -70,4 +71,7 @@ async def get_service(service_name: str):
     for s in STACK_SERVICES:
         if s["name"].lower() == service_name.lower():
             return await check_service(s)
-    return {"error": f"Unknown service: {service_name}", "known": [s["name"] for s in STACK_SERVICES]}
+    return {
+        "error": f"Unknown service: {service_name}",
+        "known": [s["name"] for s in STACK_SERVICES],
+    }

@@ -210,6 +210,15 @@ docker compose up -d
 docker compose logs -f --tail=50
 ```
 
+> **SuiteCRM first-run note:** The `bertschiweb/suitecrm` image (community-maintained,
+> based on [liteart/docker-suitecrm](https://github.com/liteart/docker-suitecrm)) does not
+> support silent/automated database setup via environment variables. On first boot, navigate
+> to `http://<IP>:8081` and complete the browser-based setup wizard. Use:
+> - **DB Host:** `db`
+> - **DB Name:** `suitecrm`
+> - **DB User:** `wpuser`
+> - **DB Password:** value of `DB_PASSWORD` from your `.env`
+
 Press `Ctrl+C` to stop following logs. Check service status:
 
 ```bash
@@ -222,7 +231,7 @@ Expected output (all services `Up`):
 NAME                    STATUS          PORTS
 launchops_db            Up              3306/tcp
 launchops_wordpress     Up              0.0.0.0:8080->80/tcp
-launchops_suitecrm      Up              0.0.0.0:8081->8080/tcp
+launchops_suitecrm      Up              0.0.0.0:8081->80/tcp
 launchops_mautic        Up              0.0.0.0:8082->80/tcp
 launchops_matomo        Up              0.0.0.0:8083->80/tcp
 launchops_vaultwarden   Up              0.0.0.0:8000->80/tcp
