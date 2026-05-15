@@ -83,17 +83,30 @@ services:
         condition: service_healthy
 
   # 3. Mautic (Email + Marketing Automations)
+  #    The v4-apache image entrypoint accepts both MAUTIC_DB_* and MYSQL_*
+  #    variable names. Both sets are provided here for compatibility.
   mautic:
     image: mautic/mautic:v4-apache
     container_name: launchops_mautic
-    restart: always
+    restart: on-failure
     ports:
       - "8082:80"
     environment:
+      # Primary variable names used by mautic/mautic:v4-apache entrypoint
       - MAUTIC_DB_HOST=db
+      - MAUTIC_DB_PORT=3306
       - MAUTIC_DB_USER=wpuser
       - MAUTIC_DB_PASSWORD=${DB_PASSWORD:-securepassword123}
       - MAUTIC_DB_NAME=mautic
+      # Alias variable names (some entrypoint versions use these)
+      - MYSQL_HOST=db
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=mautic
+      - MYSQL_USER=wpuser
+      - MYSQL_PASSWORD=${DB_PASSWORD:-securepassword123}
+      # PHP memory limit for Mautic
+      - PHP_MEMORY_LIMIT=512M
+      - PHP_MAX_EXECUTION_TIME=300
     volumes:
       - ./data/mautic:/var/www/html
     networks:
