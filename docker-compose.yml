@@ -190,7 +190,8 @@ services:
       - OWNER_NAME=${OWNER_NAME:-}
     volumes:
       # Docker socket — required for container stats, logs, and control
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      # NOTE: writable (no :ro) so start/stop/restart commands can execute
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - launchops_net
     depends_on:

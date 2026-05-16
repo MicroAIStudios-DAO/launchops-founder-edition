@@ -19,10 +19,14 @@ CREATE DATABASE IF NOT EXISTS mautic CHARACTER SET utf8mb4 COLLATE utf8mb4_unico
 -- Matomo
 CREATE DATABASE IF NOT EXISTS matomo CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
+-- Control Tower (infrastructure monitoring dashboard)
+CREATE DATABASE IF NOT EXISTS control_tower CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 -- Grant wpuser full access to all LaunchOps databases
-GRANT ALL PRIVILEGES ON wordpress.* TO 'wpuser'@'%';
-GRANT ALL PRIVILEGES ON suitecrm.*  TO 'wpuser'@'%';
-GRANT ALL PRIVILEGES ON mautic.*    TO 'wpuser'@'%';
-GRANT ALL PRIVILEGES ON matomo.*    TO 'wpuser'@'%';
+GRANT ALL PRIVILEGES ON wordpress.*     TO 'wpuser'@'%';
+GRANT ALL PRIVILEGES ON suitecrm.*      TO 'wpuser'@'%';
+GRANT ALL PRIVILEGES ON mautic.*        TO 'wpuser'@'%';
+GRANT ALL PRIVILEGES ON matomo.*        TO 'wpuser'@'%';
+GRANT ALL PRIVILEGES ON control_tower.* TO 'wpuser'@'%';
 
 FLUSH PRIVILEGES;
