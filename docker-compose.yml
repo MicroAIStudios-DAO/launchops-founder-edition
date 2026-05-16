@@ -73,11 +73,19 @@ services:
     image: bertschiweb/suitecrm:latest
     container_name: launchops_suitecrm
     restart: always
-    user: "33:33"  # www-data — ensures Apache can write to mounted volumes
+    # Do NOT set user: here — the entrypoint must run as root to set up Apache,
+    # then drops to www-data. The entrypoint also runs chown internally.
     ports:
       - "8081:80"
     volumes:
-      - ./data/suitecrm/html:/var/www/html  # full app dir — writable by www-data
+      # Named volumes for the writable SuiteCRM directories.
+      # Named volumes (not bind mounts) preserve the image's initial file tree
+      # so the app files are present on first start.
+      - suitecrm_upload:/var/www/html/upload
+      - suitecrm_cache:/var/www/html/cache
+      - suitecrm_custom:/var/www/html/custom
+      - suitecrm_modules:/var/www/html/modules
+      - suitecrm_config:/var/www/html/config_si.php
     networks:
       - launchops_net
     depends_on:
@@ -159,3 +167,13 @@ services:
 networks:
   launchops_net:
     driver: bridge
+
+# Named volumes for SuiteCRM writable directories.
+# These persist data across container restarts and recreations while
+# preserving the image's initial file tree (unlike bind mounts).
+volumes:
+  suitecrm_upload:
+  suitecrm_cache:
+  suitecrm_custom:
+  suitecrm_modules:
+  suitecrm_config:

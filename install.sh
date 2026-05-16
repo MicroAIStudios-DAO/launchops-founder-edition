@@ -35,10 +35,8 @@ fi
 echo "📁 Creating data directories..."
 mkdir -p data/wordpress
 mkdir -p data/mysql
-# SuiteCRM: full html dir mounted so Apache (www-data, UID 33) can write everywhere
-mkdir -p data/suitecrm/html
-chown -R 33:33 data/suitecrm/
-chmod -R 755 data/suitecrm/
+# SuiteCRM uses named Docker volumes for writable dirs (upload, cache, custom,
+# modules, config) — Docker manages ownership automatically. No bind-mount dirs needed.
 mkdir -p data/mautic
 mkdir -p data/matomo
 mkdir -p data/vaultwarden
