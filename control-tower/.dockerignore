@@ -1,0 +1,11 @@
+node_modules
+dist
+.manus-logs
+.env
+.env.*
+*.log
+.git
+.gitignore
+README.md
+todo.md
+drizzle/migrations

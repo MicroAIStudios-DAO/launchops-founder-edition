@@ -1,0 +1,324 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import url("https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap");
+
+@custom-variant dark (&:is(.dark *));
+
+/* ─── Cyberpunk Design Tokens ─────────────────────────────────────────────── */
+:root {
+  --bg-void: #020408;
+  --bg-base: #060d14;
+  --bg-card: #0a1520;
+  --bg-elevated: #0f1e2d;
+  --bg-hover: #132435;
+
+  --border-dim: #1a2e42;
+  --border-glow: #0ff;
+
+  --neon-cyan: #00f5ff;
+  --neon-green: #00ff88;
+  --neon-yellow: #ffdd00;
+  --neon-red: #ff2d55;
+  --neon-purple: #bf5af2;
+  --neon-blue: #0a84ff;
+
+  --text-primary: #e0f4ff;
+  --text-secondary: #7ab3cc;
+  --text-muted: #3d6680;
+  --text-accent: #00f5ff;
+
+  /* Tailwind/shadcn semantic tokens */
+  --background: oklch(0.04 0.02 220);
+  --foreground: oklch(0.92 0.04 210);
+  --card: oklch(0.07 0.025 220);
+  --card-foreground: oklch(0.92 0.04 210);
+  --popover: oklch(0.07 0.025 220);
+  --popover-foreground: oklch(0.92 0.04 210);
+  --primary: oklch(0.75 0.18 195);
+  --primary-foreground: oklch(0.04 0.02 220);
+  --secondary: oklch(0.12 0.03 220);
+  --secondary-foreground: oklch(0.92 0.04 210);
+  --muted: oklch(0.12 0.03 220);
+  --muted-foreground: oklch(0.55 0.06 215);
+  --accent: oklch(0.75 0.18 195);
+  --accent-foreground: oklch(0.04 0.02 220);
+  --destructive: oklch(0.6 0.22 15);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.18 0.04 220);
+  --input: oklch(0.12 0.03 220);
+  --ring: oklch(0.75 0.18 195);
+  --radius: 0.375rem;
+
+  /* Chart colors */
+  --chart-1: oklch(0.75 0.18 195);
+  --chart-2: oklch(0.72 0.2 145);
+  --chart-3: oklch(0.85 0.18 85);
+  --chart-4: oklch(0.65 0.22 15);
+  --chart-5: oklch(0.7 0.2 280);
+
+  /* Sidebar */
+  --sidebar: oklch(0.05 0.025 220);
+  --sidebar-foreground: oklch(0.92 0.04 210);
+  --sidebar-primary: oklch(0.75 0.18 195);
+  --sidebar-primary-foreground: oklch(0.04 0.02 220);
+  --sidebar-accent: oklch(0.1 0.03 220);
+  --sidebar-accent-foreground: oklch(0.92 0.04 210);
+  --sidebar-border: oklch(0.18 0.04 220);
+  --sidebar-ring: oklch(0.75 0.18 195);
+}
+
+/* ─── Base Reset ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  background-color: var(--bg-void);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  height: 100%;
+}
+
+#root { height: 100%; }
+
+/* ─── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-base); }
+::-webkit-scrollbar-thumb { background: var(--border-dim); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--neon-cyan); }
+
+/* ─── Typography ──────────────────────────────────────────────────────────── */
+.font-mono { font-family: 'Share Tech Mono', monospace; }
+.font-display { font-family: 'Orbitron', sans-serif; }
+
+/* ─── Neon Glow Utilities ─────────────────────────────────────────────────── */
+.glow-cyan {
+  text-shadow: 0 0 8px var(--neon-cyan), 0 0 20px rgba(0,245,255,0.4);
+  color: var(--neon-cyan);
+}
+.glow-green {
+  text-shadow: 0 0 8px var(--neon-green), 0 0 20px rgba(0,255,136,0.4);
+  color: var(--neon-green);
+}
+.glow-yellow {
+  text-shadow: 0 0 8px var(--neon-yellow), 0 0 20px rgba(255,221,0,0.4);
+  color: var(--neon-yellow);
+}
+.glow-red {
+  text-shadow: 0 0 8px var(--neon-red), 0 0 20px rgba(255,45,85,0.4);
+  color: var(--neon-red);
+}
+
+.border-glow-cyan { border-color: var(--neon-cyan); box-shadow: 0 0 12px rgba(0,245,255,0.3), inset 0 0 12px rgba(0,245,255,0.05); }
+.border-glow-green { border-color: var(--neon-green); box-shadow: 0 0 12px rgba(0,255,136,0.3), inset 0 0 12px rgba(0,255,136,0.05); }
+.border-glow-yellow { border-color: var(--neon-yellow); box-shadow: 0 0 12px rgba(255,221,0,0.3), inset 0 0 12px rgba(255,221,0,0.05); }
+.border-glow-red { border-color: var(--neon-red); box-shadow: 0 0 12px rgba(255,45,85,0.3), inset 0 0 12px rgba(255,45,85,0.05); }
+
+/* ─── Neon Status Dot ─────────────────────────────────────────────────────── */
+.status-dot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.healthy {
+  background: var(--neon-green);
+  box-shadow: 0 0 6px var(--neon-green), 0 0 14px rgba(0,255,136,0.6);
+  animation: pulse-green 2s infinite;
+}
+.status-dot.warning {
+  background: var(--neon-yellow);
+  box-shadow: 0 0 6px var(--neon-yellow), 0 0 14px rgba(255,221,0,0.6);
+  animation: pulse-yellow 1.5s infinite;
+}
+.status-dot.down {
+  background: var(--neon-red);
+  box-shadow: 0 0 6px var(--neon-red), 0 0 14px rgba(255,45,85,0.6);
+  animation: pulse-red 1s infinite;
+}
+
+@keyframes pulse-green {
+  0%, 100% { box-shadow: 0 0 6px var(--neon-green), 0 0 14px rgba(0,255,136,0.6); }
+  50% { box-shadow: 0 0 10px var(--neon-green), 0 0 24px rgba(0,255,136,0.9); }
+}
+@keyframes pulse-yellow {
+  0%, 100% { box-shadow: 0 0 6px var(--neon-yellow), 0 0 14px rgba(255,221,0,0.6); }
+  50% { box-shadow: 0 0 10px var(--neon-yellow), 0 0 24px rgba(255,221,0,0.9); }
+}
+@keyframes pulse-red {
+  0%, 100% { box-shadow: 0 0 6px var(--neon-red), 0 0 14px rgba(255,45,85,0.6); }
+  50% { box-shadow: 0 0 10px var(--neon-red), 0 0 24px rgba(255,45,85,0.9); }
+}
+
+/* ─── Cyber Card ──────────────────────────────────────────────────────────── */
+.cyber-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-dim);
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.cyber-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+  opacity: 0.4;
+}
+.cyber-card:hover {
+  border-color: rgba(0,245,255,0.4);
+  box-shadow: 0 0 20px rgba(0,245,255,0.08);
+}
+
+/* ─── Cyber Panel ─────────────────────────────────────────────────────────── */
+.cyber-panel {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+}
+
+/* ─── Scanline overlay ────────────────────────────────────────────────────── */
+.scanlines::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.08) 2px,
+    rgba(0,0,0,0.08) 4px
+  );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ─── Log terminal ────────────────────────────────────────────────────────── */
+.log-terminal {
+  background: #020a0f;
+  border: 1px solid var(--border-dim);
+  border-radius: 6px;
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #7fffd4;
+  overflow-y: auto;
+  padding: 12px;
+}
+.log-terminal .log-line { padding: 1px 0; }
+.log-terminal .log-line:hover { background: rgba(0,245,255,0.04); }
+.log-line-error { color: var(--neon-red); }
+.log-line-warn { color: var(--neon-yellow); }
+.log-line-info { color: #7fffd4; }
+
+/* ─── Metric bar ──────────────────────────────────────────────────────────── */
+.metric-bar-track {
+  background: var(--bg-void);
+  border-radius: 2px;
+  height: 4px;
+  overflow: hidden;
+}
+.metric-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* ─── Sidebar nav item ────────────────────────────────────────────────────── */
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  border: 1px solid transparent;
+  text-decoration: none;
+}
+.nav-item:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border-color: var(--border-dim);
+}
+.nav-item.active {
+  background: rgba(0,245,255,0.08);
+  color: var(--neon-cyan);
+  border-color: rgba(0,245,255,0.25);
+  box-shadow: inset 0 0 12px rgba(0,245,255,0.05);
+}
+.nav-item.active svg { filter: drop-shadow(0 0 4px var(--neon-cyan)); }
+
+/* ─── Button variants ─────────────────────────────────────────────────────── */
+.btn-cyber {
+  background: transparent;
+  border: 1px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+}
+.btn-cyber:hover {
+  background: rgba(0,245,255,0.1);
+  box-shadow: 0 0 12px rgba(0,245,255,0.3);
+}
+.btn-cyber:active { transform: scale(0.97); }
+
+.btn-danger {
+  border-color: var(--neon-red);
+  color: var(--neon-red);
+}
+.btn-danger:hover {
+  background: rgba(255,45,85,0.1);
+  box-shadow: 0 0 12px rgba(255,45,85,0.3);
+}
+
+.btn-success {
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+}
+.btn-success:hover {
+  background: rgba(0,255,136,0.1);
+  box-shadow: 0 0 12px rgba(0,255,136,0.3);
+}
+
+/* ─── Tailwind layer base ─────────────────────────────────────────────────── */
+@layer base {
+  * { border-color: var(--border); }
+  body { background-color: var(--bg-void); color: var(--text-primary); }
+}
+
+/* ─── Container ───────────────────────────────────────────────────────────── */
+.container {
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+/* ─── Flex min-size fix ───────────────────────────────────────────────────── */
+.flex { min-width: 0; min-height: 0; }
+
+/* ─── Recharts overrides ──────────────────────────────────────────────────── */
+.recharts-cartesian-grid-horizontal line,
+.recharts-cartesian-grid-vertical line {
+  stroke: var(--border-dim) !important;
+}
+.recharts-text { fill: var(--text-muted) !important; font-size: 11px; }
+.recharts-tooltip-wrapper .recharts-default-tooltip {
+  background: var(--bg-elevated) !important;
+  border: 1px solid var(--border-dim) !important;
+  border-radius: 6px !important;
+  color: var(--text-primary) !important;
+}
