@@ -45,6 +45,8 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD:-securepassword123}
     volumes:
       - ./data/mysql:/var/lib/mysql
+      # Init script runs on first start (empty data dir) — creates all DBs
+      - ./config/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - launchops_net
     healthcheck:
