@@ -71,11 +71,11 @@ services:
     image: bertschiweb/suitecrm:latest
     container_name: launchops_suitecrm
     restart: always
+    user: "33:33"  # www-data — ensures Apache can write to mounted volumes
     ports:
       - "8081:80"
     volumes:
-      - ./data/suitecrm/upload:/var/www/html/upload
-      - ./data/suitecrm/conf.d:/var/www/html/conf.d
+      - ./data/suitecrm/html:/var/www/html  # full app dir — writable by www-data
     networks:
       - launchops_net
     depends_on:

@@ -33,11 +33,12 @@ fi
 
 # ── Data directories ──────────────────────────────────────────────────────────
 echo "📁 Creating data directories..."
-# SuiteCRM uses two specific volume paths (upload + conf.d) — not a single root dir.
 mkdir -p data/wordpress
 mkdir -p data/mysql
-mkdir -p data/suitecrm/upload
-mkdir -p data/suitecrm/conf.d
+# SuiteCRM: full html dir mounted so Apache (www-data, UID 33) can write everywhere
+mkdir -p data/suitecrm/html
+chown -R 33:33 data/suitecrm/
+chmod -R 755 data/suitecrm/
 mkdir -p data/mautic
 mkdir -p data/matomo
 mkdir -p data/vaultwarden
