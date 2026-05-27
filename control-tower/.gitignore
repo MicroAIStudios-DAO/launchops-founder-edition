@@ -111,3 +111,9 @@ temp/
 
 # Manus version file (auto-generated, not part of source)
 client/public/__manus__/version.json
+
+# Override root .gitignore: lib/ is a valid source directory here, not a Python venv
+
+# Override root .gitignore: client/src/lib/ is a valid source directory here, not a Python venv
+!client/src/lib/
+!client/src/lib/**
