@@ -10,6 +10,7 @@ import Stats from "./pages/Stats";
 import Controls from "./pages/Controls";
 import Exports from "./pages/Exports";
 import AuditLog from "./pages/AuditLog";
+import Agents from "./pages/Agents";
 import NotFound from "./pages/NotFound";
 
 function Router() {
@@ -22,6 +23,7 @@ function Router() {
         <Route path="/controls" component={Controls} />
         <Route path="/exports" component={Exports} />
         <Route path="/audit" component={AuditLog} />
+        <Route path="/agents" component={Agents} />
         <Route component={NotFound} />
       </Switch>
     </ControlTowerLayout>

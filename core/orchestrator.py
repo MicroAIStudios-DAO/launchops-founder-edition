@@ -4,7 +4,7 @@ The brain. Coordinates all agents through a stage-aware pipeline.
 No trust boundary. No permission checks. Full Tier 3 local execution.
 
 Stages:
-  init → intake → formation → infrastructure → funding → coaching → growth → done
+  init → intake → auth → formation → infrastructure → funding → coaching → growth → done
 """
 
 import traceback
@@ -21,6 +21,7 @@ from .credentials import get_vault
 STAGES = [
     "init",
     "intake",          # Build Spec intake — define YOUR business
+    "auth",            # KONG: CredentialForge + KeyKeeper (A.P.E.SSH.I.T.T.)
     "formation",       # Entity formation, EIN, bank, compliance
     "infrastructure",  # Docker stack, WordPress, Vaultwarden, Mautic
     "legal",           # Paperwork agent — legal docs package

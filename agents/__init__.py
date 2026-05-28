@@ -22,6 +22,13 @@ from agents.project_agent import ProjectAgent
 from agents.repo_agent import RepoAgent
 from agents.support_agent import SupportAgent
 
+# ── KONG Team — A.P.E.SSH.I.T.T. ─────────────────────────────────────────────
+# Agentic Password Executor & SSH Internal Tokenization Team
+# CredentialForge: creates usernames, passwords, setup email
+# KeyKeeper: monitors inbox, retrieves OTPs and verification links
+from agents.credential_forge import CredentialForge
+from agents.key_keeper import KeyKeeper
+
 __all__ = [
     "BaseAgent",
     "SecurityAgent",
@@ -41,4 +48,7 @@ __all__ = [
     "ProjectAgent",
     "RepoAgent",
     "SupportAgent",
+    # KONG Team
+    "CredentialForge",
+    "KeyKeeper",
 ]

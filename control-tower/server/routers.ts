@@ -3,6 +3,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 import {
+  getAlertState,
   getAuditEvents,
   getExportData,
   getHealthChecksByService,
@@ -13,30 +14,32 @@ import {
   insertHealthCheck,
   insertLogSnapshot,
   insertStatsReading,
+  upsertAlertState,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { notifyOwner } from "./_core/notification";
 import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 
-// ─── Alert state (in-memory, resets on restart) ───────────────────────────────
-// Tracks the last known status per service and the last time an alert was sent.
+// ─── Alert state (DB-persisted, survives restarts) ───────────────────────────
+// Reads last known status and last alert time from the alert_state table.
 // Cooldown: 5 minutes per service to avoid notification storms.
 const ALERT_COOLDOWN_MS = 5 * 60 * 1000;
-const lastAlertTime: Record<string, number> = {};
-const lastKnownStatus: Record<string, string> = {};
 
 async function fireAlertIfNeeded(
   service: string,
   newStatus: "healthy" | "warning" | "down"
 ): Promise<void> {
-  const prev = lastKnownStatus[service];
   const now = Date.now();
 
-  // Only alert on transitions TO warning or down
+  // Load persisted state for this service
+  const stored = await getAlertState(service);
+  const prev = stored?.lastStatus ?? null;
+  const lastAlertAt = stored?.lastAlertAt ? stored.lastAlertAt.getTime() : 0;
+
   const isAlertState = newStatus === "warning" || newStatus === "down";
   const isTransition = prev !== newStatus;
-  const cooldownExpired = !lastAlertTime[service] || now - lastAlertTime[service] > ALERT_COOLDOWN_MS;
+  const cooldownExpired = now - lastAlertAt > ALERT_COOLDOWN_MS;
 
   if (isAlertState && isTransition && cooldownExpired) {
     const emoji = newStatus === "down" ? "🔴" : "🟡";
@@ -47,20 +50,22 @@ async function fireAlertIfNeeded(
         content:
           `Service: **${service}**\n` +
           `Status: **${level}**\n` +
-          `Previous: ${prev || "unknown"}\n` +
+          `Previous: ${prev ?? "unknown"}\n` +
           `Time: ${new Date().toUTCString()}\n\n` +
           (newStatus === "down"
             ? `The container is not running. Check the Controls panel to restart it.`
             : `CPU or memory usage has exceeded safe thresholds. Check the Stats panel for details.`),
       });
-      lastAlertTime[service] = now;
+      // Persist updated state including alert timestamp
+      await upsertAlertState({ service, lastStatus: newStatus, lastAlertAt: new Date() });
+      return;
     } catch {
       // Notification failure is non-fatal — polling continues
     }
   }
 
-  // Always update last known status
-  lastKnownStatus[service] = newStatus;
+  // Always persist the latest status (even if no alert fired)
+  await upsertAlertState({ service, lastStatus: newStatus });
 }
 
 const execAsync = promisify(exec);
@@ -434,8 +439,66 @@ const exportsRouter = router({
     }),
 });
 
+// ── Atlas Agent Fleet router ─────────────────────────────────────────────────
+const AGENT_IDS = [
+  "founder_os", "business_builder", "dynexecutiv", "metrics_agent", "content_engine",
+  "credential_forge", "key_keeper",
+  "security_agent", "wordpress_agent", "mautic_agent", "stripe_agent",
+  "paperwork_agent", "paralegal_bot",
+  "funding_intelligence", "execai_coach",
+  "analytics_agent", "email_agent", "files_agent", "growth_agent",
+  "project_agent", "repo_agent", "support_agent", "documentary_tracker",
+];
+
+const agentsRouter = router({
+  getStatus: publicProcedure.query(async () => {
+    // Read agent audit log from the launchops artifacts directory
+    const artifactsBase = process.env.ARTIFACTS_PATH ||
+      `${process.env.HOME || "/root"}/.launchops/documents`;
+    const result: Record<string, { status: string; lastRun: string | null; lastResult: string | null }> = {};
+    for (const id of AGENT_IDS) {
+      result[id] = { status: "idle", lastRun: null, lastResult: null };
+    }
+    // Try to read the latest pipeline context for last-run info
+    try {
+      const contextPath = `${process.env.HOME || "/root"}/.launchops/context.json`;
+      const fs = await import("fs");
+      if (fs.existsSync(contextPath)) {
+        const raw = fs.readFileSync(contextPath, "utf8");
+        const ctx = JSON.parse(raw);
+        const outputs = ctx?.agent_outputs || {};
+        for (const stage of Object.values(outputs) as Record<string, unknown>[]) {
+          for (const [agentName, data] of Object.entries(stage as Record<string, unknown>)) {
+            const d = data as { status?: string; timestamp?: string; result?: unknown };
+            const id = agentName.toLowerCase();
+            if (result[id] !== undefined) {
+              result[id] = {
+                status: d.status === "completed" ? "idle" : d.status === "error" ? "error" : "idle",
+                lastRun: d.timestamp || null,
+                lastResult: d.result ? JSON.stringify(d.result).slice(0, 200) : null,
+              };
+            }
+          }
+        }
+        // Mark currently active stage agents as "active"
+        const currentStage = ctx?.stage;
+        if (currentStage && outputs[currentStage]) {
+          for (const agentName of Object.keys(outputs[currentStage] as object)) {
+            const id = agentName.toLowerCase();
+            if (result[id]) result[id].status = "active";
+          }
+        }
+      }
+    } catch {
+      // Context file not present yet — all agents show as idle
+    }
+    return result;
+  }),
+});
+
 export const appRouter = router({
   system: systemRouter,
+  agents: agentsRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {

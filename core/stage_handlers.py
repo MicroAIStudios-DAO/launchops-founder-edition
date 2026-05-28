@@ -9,6 +9,7 @@ stored in SharedContext and written to disk as artifacts.
 Stage → Agent Mapping:
   init           → founder_os (morning_agenda), metrics_agent (weekly_snapshot)
   intake         → business_builder (analyze spec), dynexecutiv (generate_daily_agenda)
+  auth           → credential_forge (passwords + setup email), key_keeper (OTP inbox)
   formation      → paperwork_agent (formation docs), paralegal_bot (compliance)
   infrastructure → wordpress_agent (site setup), security_agent (audit)
   legal          → paperwork_agent (legal package), paralegal_bot (ip audit)
@@ -319,6 +320,92 @@ def register_all_handlers(orchestrator, agents: Dict[str, Any]):
         return results
 
     orchestrator.register_stage_handler("intake", handle_intake)
+
+    # ── STAGE: auth (KONG — A.P.E.SSH.I.T.T.) ─────────────────────────────────
+    def handle_auth(context: SharedContext, agents: Dict = None, config=None):
+        """
+        KONG stage: CredentialForge creates all passwords + setup email,
+        KeyKeeper monitors inbox for OTPs during account creation flows.
+        Runs before formation so every downstream agent has credentials ready.
+        """
+        if agents is None:
+            agents = {}
+        results = {}
+        forge  = agents.get("credential_forge")
+        keeper = agents.get("key_keeper")
+
+        if not forge:
+            results["kong"] = {"status": "skipped", "reason": "credential_forge not registered"}
+            return results
+
+        # 1. Intake: collect founder preferences (or full_auto)
+        full_auto = context.get("full_auto", True)
+        profile_result = _safe_execute(
+            forge,
+            {"type": "intake", "full_auto": full_auto},
+            context, "auth",
+        )
+        results["intake"] = profile_result
+        profile = profile_result.get("profile", {})
+
+        # 2. Create the disposable setup email
+        email_result = _safe_execute(
+            forge,
+            {"type": "create_email"},
+            context, "auth",
+        )
+        results["setup_email"] = email_result
+        setup_email = email_result.get("setup_email", "")
+        context.set("kong.setup_email", setup_email)
+
+        # 3. Issue handshake token so KeyKeeper can access the inbox
+        handshake_result = _safe_execute(
+            forge,
+            {"type": "handshake_token"},
+            context, "auth",
+        )
+        results["handshake"] = handshake_result
+        handshake_token = handshake_result.get("handshake_token", "")
+        context.set("kong.handshake_token", handshake_token)
+
+        # 4. Authorize KeyKeeper (verify handshake, load inbox)
+        if keeper:
+            keeper.analyze({"handshake_token": handshake_token})
+            results["keykeeper_authorized"] = True
+
+        # 5. Forge all service credentials
+        services = context.get("services", [
+            "wordpress", "suitecrm", "mautic", "matomo",
+            "vaultwarden", "mariadb", "github", "stripe",
+            "mailgun", "cloudflare", "openai",
+        ])
+        forge_result = _safe_execute(
+            forge,
+            {"type": "forge_all", "services": services, "profile": profile},
+            context, "auth",
+        )
+        results["forge_all"] = forge_result
+        context.set("kong.credentials_provisioned", forge_result.get("services_provisioned", []))
+
+        # 6. Save artifact
+        artifact_path = _save_artifact(
+            "auth",
+            f"kong_auth_{_ts()}.json",
+            {
+                "agent": "KONG",
+                "stage": "auth",
+                "setup_email": setup_email,
+                "services_provisioned": forge_result.get("services_provisioned", []),
+                "full_auto": full_auto,
+                "timestamp": datetime.now().isoformat(),
+            },
+        )
+        context.set("artifacts.auth.kong", str(artifact_path))
+        print(f"  ✓ KONG auth stage complete — {len(forge_result.get('services_provisioned', []))} services provisioned")
+        print(f"  ✓ Setup email: {setup_email}")
+        return results
+
+    orchestrator.register_stage_handler("auth", handle_auth)
 
     # ── STAGE: formation ─────────────────────────────────────────────────
     def handle_formation(context: SharedContext, agents: Dict = None, config=None):

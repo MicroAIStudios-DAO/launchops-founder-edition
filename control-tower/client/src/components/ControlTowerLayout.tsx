@@ -2,6 +2,7 @@ import { useLocation } from "wouter";
 import {
   Activity,
   BarChart3,
+  Bot,
   Download,
   FileText,
   Gauge,
@@ -19,6 +20,7 @@ const NAV_ITEMS = [
   { label: "Controls", path: "/controls", icon: Zap },
   { label: "Exports", path: "/exports", icon: Download },
   { label: "Audit Log", path: "/audit", icon: ScrollText },
+  { label: "Agent Fleet", path: "/agents", icon: Bot },
 ];
 
 const SERVICE_LINKS = [

@@ -47,6 +47,10 @@ from agents.business_builder import BusinessBuilderAgent
 from agents.documentary_tracker import DocumentaryTracker
 from agents.security_agent import SecurityAgent
 
+# KONG Team — A.P.E.SSH.I.T.T.
+from agents.credential_forge import CredentialForge
+from agents.key_keeper import KeyKeeper
+
 
 def build_system(config_path: str = None) -> dict:
     """Build the full LaunchOps system."""
@@ -111,6 +115,10 @@ def build_system(config_path: str = None) -> dict:
             agents[agent_name] = cls(llm_client=raw_openai, config=cfg)
         except Exception as e:
             print(f"  Warning: Could not load {agent_name}: {e}")
+
+    # KONG Team: always register, no LLM dependency
+    agents["credential_forge"] = CredentialForge(config=cfg)
+    agents["key_keeper"]       = KeyKeeper(config=cfg)
 
     # Initialize orchestrator
     orchestrator = AtlasOrchestrator()
