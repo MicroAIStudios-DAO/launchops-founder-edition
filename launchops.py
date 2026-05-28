@@ -331,6 +331,98 @@ def cmd_stop(system, args):
     print("All services stopped!")
 
 
+def cmd_task(system, args):
+    """
+    Direct agent task dispatch.
+    Usage: python launchops.py task <agent_name> <task_type> [--services svc1,svc2]
+
+    Examples:
+      python launchops.py task credential_forge intake
+      python launchops.py task credential_forge account_creation_all
+      python launchops.py task credential_forge account_creation_all --services github,stripe
+      python launchops.py task key_keeper status
+    """
+    # args.stage_name holds the agent name (first positional after 'task')
+    # args.task_type holds the task type (second positional)
+    agent_name = getattr(args, "stage_name", None)
+    task_type  = getattr(args, "task_type", None)
+
+    if not agent_name or not task_type:
+        print("Usage: python launchops.py task <agent_name> <task_type>")
+        print("\nAvailable agents:")
+        for name in system["agents"]:
+            print(f"  {name}")
+        return
+
+    agent = system["agents"].get(agent_name)
+    if not agent:
+        print(f"Agent '{agent_name}' not found.")
+        print("Available agents:", list(system["agents"].keys()))
+        return
+
+    # Build task dict
+    task = {"type": task_type}
+
+    # Pass --services if provided (for account_creation_all)
+    services_raw = getattr(args, "services", None)
+    if services_raw:
+        task["services"] = [s.strip() for s in services_raw.split(",") if s.strip()]
+
+    # Pass --output-json flag
+    output_json = getattr(args, "output_json", False)
+
+    print(f"\n  Running agent '{agent_name}' with task '{task_type}'...\n")
+    result = agent.execute(task)
+
+    if output_json:
+        print(json.dumps(result, indent=2, default=str))
+    else:
+        # Pretty-print for human consumption
+        success = result.get("success", False)
+        icon = "[OK]" if success else "[!!]"
+        print(f"  {icon} Result: {'SUCCESS' if success else 'FAILED'}")
+        for k, v in result.items():
+            if k == "success":
+                continue
+            val = json.dumps(v, default=str) if isinstance(v, (dict, list)) else str(v)
+            print(f"  {k}: {val[:200]}")
+        print()
+
+
+def cmd_kong(system, args):
+    """
+    KONG team shortcut — runs full account creation for all or selected services.
+    Usage: python launchops.py kong [--services svc1,svc2]
+    """
+    forge = system["agents"].get("credential_forge")
+    if not forge:
+        print("CredentialForge agent not loaded.")
+        return
+
+    services_raw = getattr(args, "services", None)
+    task = {"type": "account_creation_all"}
+    if services_raw:
+        task["services"] = [s.strip() for s in services_raw.split(",") if s.strip()]
+
+    print("\n  KONG TEAM ACTIVATED — A.P.E.SSH.I.T.T.")
+    print("  CredentialForge + KeyKeeper running...\n")
+    result = forge.execute(task)
+
+    if getattr(args, "output_json", False):
+        print(json.dumps(result, indent=2, default=str))
+    else:
+        success = result.get("success", False)
+        results = result.get("results", {})
+        print(f"  {'[OK]' if success else '[!!]'} KONG run {'completed' if success else 'finished with errors'}")
+        for svc, res in results.items():
+            ok = res.get("success", False)
+            steps = res.get("steps", "?")
+            print(f"    {'✓' if ok else '✗'} {svc}: {steps} steps")
+            if not ok and res.get("errors"):
+                print(f"      Error: {res['errors'][0][:120]}")
+        print()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="LaunchOps Founder Edition - The AI-Powered Business Operating System for Founders.",
@@ -360,12 +452,15 @@ Commands:
                         choices=["launch", "stage", "status", "coach", "funding",
                                  "formation", "paperwork", "ip-audit", "security",
                                  "documentary", "health", "reset", "config",
-                                 "deploy", "stop"])
+                                 "deploy", "stop", "task", "kong"])
     parser.add_argument("stage_name", nargs="?", default=None)
+    parser.add_argument("task_type", nargs="?", default=None)
     parser.add_argument("--document", "-d", help="Specific document to generate")
     parser.add_argument("--topic", "-t", help="Coaching topic")
     parser.add_argument("--skip-infra", action="store_true", help="Skip infrastructure stages")
     parser.add_argument("--config-path", "-c", dest="config_path", help="Path to config file")
+    parser.add_argument("--services", help="Comma-separated list of services for KONG/task commands")
+    parser.add_argument("--output-json", action="store_true", dest="output_json", help="Output result as JSON")
 
     args = parser.parse_args()
 
@@ -399,6 +494,8 @@ Commands:
         "config": cmd_config,
         "deploy": cmd_deploy,
         "stop": cmd_stop,
+        "task": cmd_task,
+        "kong": cmd_kong,
     }
 
     handler = commands.get(args.command, cmd_status)
