@@ -6,6 +6,7 @@ import {
   Download,
   FileText,
   Gauge,
+  PlayCircle,
   ScrollText,
   Shield,
   Terminal,
@@ -15,6 +16,7 @@ import type { ReactNode } from "react";
 
 const NAV_ITEMS = [
   { label: "Overview", path: "/", icon: Gauge },
+  { label: "Setup Guide", path: "/onboarding", icon: PlayCircle },
   { label: "Logs", path: "/logs", icon: Terminal },
   { label: "Stats", path: "/stats", icon: BarChart3 },
   { label: "Controls", path: "/controls", icon: Zap },

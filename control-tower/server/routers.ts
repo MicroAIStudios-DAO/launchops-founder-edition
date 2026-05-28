@@ -1,5 +1,6 @@
 import { COOKIE_NAME } from "@shared/const";
 import { exec } from "child_process";
+import { invokeLLM } from "./_core/llm";
 import { promisify } from "util";
 import { z } from "zod";
 import {
@@ -451,6 +452,96 @@ const AGENT_IDS = [
 ];
 
 const agentsRouter = router({
+  /**
+   * Trigger KONG team account creation via the Python launchops CLI.
+   * Runs: python3 launchops.py task credential_forge account_creation_all
+   * Returns per-service results from the JSON output.
+   */
+  runAccountCreation: publicProcedure
+    .input(
+      z.object({
+        services: z.array(z.string()).optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const launchopsDir = process.env.LAUNCHOPS_DIR ||
+        `${process.env.HOME || "/root"}/launchops-founder-edition`;
+      const services = (input.services || []).join(",");
+      const cmd = services
+        ? `cd ${launchopsDir} && python3 launchops.py task credential_forge account_creation_all --services ${services} --output-json 2>&1`
+        : `cd ${launchopsDir} && python3 launchops.py task credential_forge account_creation_all --output-json 2>&1`;
+
+      try {
+        const { stdout } = await execAsync(cmd, { timeout: 600_000 });
+        // Parse JSON output — launchops.py prints a JSON line at the end
+        const lines = stdout.trim().split("\n");
+        const jsonLine = lines.reverse().find((l) => l.trim().startsWith("{"));
+        if (jsonLine) {
+          const parsed = JSON.parse(jsonLine);
+          return {
+            success:  parsed.success ?? false,
+            results:  parsed.results ?? {},
+            raw:      stdout.slice(-1000),
+          };
+        }
+        return { success: false, results: {}, raw: stdout.slice(-1000) };
+      } catch (err: any) {
+        return {
+          success: false,
+          results: {},
+          raw: err.message || "Execution failed",
+        };
+      }
+    }),
+
+  /**
+   * Atlas AI chat — answers questions about the agent fleet, pipeline, and system.
+   */
+  atlasChat: publicProcedure
+    .input(
+      z.object({
+        messages: z.array(
+          z.object({
+            role: z.enum(["user", "assistant"]),
+            content: z.string(),
+          })
+        ),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const SYSTEM = `You are Atlas, the AI orchestrator for LaunchOps Founder Edition — a no-guardrails AI-powered business operating system.
+
+You coordinate 19 specialized agents in 6 teams:
+- KONG (A.P.E.SSH.I.T.T.): CredentialForge, KeyKeeper — automated account creation & 2FA handling
+- Core Pipeline: FounderOS, BusinessBuilder, DynExecutiv, MetricsAgent, ContentEngine
+- Infrastructure: SecurityAgent, WordPressAgent, MauticAgent, StripeAgent
+- Legal & Formation: PaperworkAgent, ParalegalBot
+- Intelligence: FundingIntelligence, ExecAICoach
+- Operations: AnalyticsAgent, EmailAgent, GrowthAgent, ProjectAgent, DocumentaryTracker
+
+Pipeline stages: intake → auth → formation → infrastructure → legal → payments → funding → coaching → growth
+
+Stack on Vultr: WordPress (:8080), SuiteCRM (:8081), Mautic (:8082), Matomo (:8083), Vaultwarden (:8000)
+
+CLI: venv/bin/python3 launchops.py [command]
+Key commands: kong, stage [name], task [agent] [task], health, status, launch
+
+Be direct, specific, and action-oriented. Speak like a brilliant co-founder who built this system. No corporate speak.`;
+
+      try {
+        const response = await invokeLLM({
+          messages: [
+            { role: "system", content: SYSTEM },
+            ...input.messages,
+          ],
+        });
+        const reply = response?.choices?.[0]?.message?.content || "Processing. Check Controls panel to run agents directly.";
+        return { reply };
+      } catch {
+        return { reply: "Atlas is temporarily unavailable. Use the Controls panel or Vultr terminal to run agents directly." };
+      }
+    }),
+
   getStatus: publicProcedure.query(async () => {
     // Read agent audit log from the launchops artifacts directory
     const artifactsBase = process.env.ARTIFACTS_PATH ||
