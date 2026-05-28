@@ -105,18 +105,177 @@ class CredentialForge(BaseAgent):
         """Route task by type."""
         t = task.get("type", "")
         dispatch = {
-            "intake":           self._run_intake,
-            "create_email":     self._create_setup_email,
-            "forge_all":        self._forge_all_credentials,
-            "forge_service":    self._forge_single,
-            "handshake_token":  self._issue_handshake_token,
-            "deliver_bundle":   self._deliver_bundle,
-            "status":           self._status,
+            "intake":              self._run_intake,
+            "create_email":        self._create_setup_email,
+            "forge_all":           self._forge_all_credentials,
+            "forge_service":       self._forge_single,
+            "handshake_token":     self._issue_handshake_token,
+            "account_creation":    self._run_account_creation,
+            "account_creation_all": self._run_account_creation_all,
+            "deliver_bundle":      self._deliver_bundle,
+            "status":              self._status,
         }
         fn = dispatch.get(t)
         if not fn:
             return {"success": False, "error": f"Unknown task type: {t}"}
         return fn(task)
+
+    # ── Browser account creation ─────────────────────────────────────────────
+
+    def _run_account_creation(self, task: Dict) -> Dict:
+        """
+        Full automated account creation for one service.
+        Retrieves stored credentials from vault, launches BrowserForge,
+        fills the registration form, and handles OTP via KeyKeeper.
+
+        Task fields:
+          service       — e.g. "wordpress", "github"
+          key_keeper    — optional KeyKeeper instance for OTP handling
+          headless      — bool, default True
+          extra_creds   — dict of additional credential overrides
+        """
+        service     = task.get("service", "")
+        key_keeper  = task.get("key_keeper", None)
+        headless    = task.get("headless", True)
+        extra_creds = task.get("extra_creds", {})
+
+        if not service:
+            return {"success": False, "error": "service is required"}
+
+        # Build credentials dict from vault
+        credentials = self._build_credentials(service, extra_creds)
+
+        # Import here to avoid circular deps at module load
+        from tools.browser_forge import BrowserForge
+
+        bf = BrowserForge(
+            vault=self._vault,
+            key_keeper=key_keeper,
+            headless=headless,
+        )
+        try:
+            result = bf.create_account_sync(service, credentials)
+        finally:
+            bf.stop_sync()
+
+        # Store the result in vault for audit
+        self._vault.store(
+            service, "browser_creation_result",
+            str({"success": result.get("success"), "steps": len(result.get("steps", []))})
+        )
+
+        self.logger.info(
+            f"[CredentialForge] Account creation {'succeeded' if result.get('success') else 'FAILED'} "
+            f"for {service} — {len(result.get('steps', []))} steps, "
+            f"{len(result.get('screenshots', []))} screenshots"
+        )
+        return result
+
+    def _run_account_creation_all(self, task: Dict) -> Dict:
+        """
+        Run account creation for every service in the stack (or a subset).
+        Runs sequentially — one browser session reused across all services.
+        """
+        services    = task.get("services", self._default_services())
+        key_keeper  = task.get("key_keeper", None)
+        headless    = task.get("headless", True)
+        results     = {}
+        errors      = []
+
+        from tools.browser_forge import BrowserForge
+        from tools.service_form_registry import get_adapter
+
+        bf = BrowserForge(
+            vault=self._vault,
+            key_keeper=key_keeper,
+            headless=headless,
+        )
+        try:
+            import asyncio
+
+            async def _run_all():
+                await bf.start()
+                for svc in services:
+                    adapter = get_adapter(svc)
+                    if adapter is None:
+                        results[svc] = {"success": False, "error": "no adapter registered"}
+                        errors.append(svc)
+                        continue
+                    creds = self._build_credentials(svc, task.get("extra_creds", {}))
+                    r = await bf.create_account(svc, creds, adapter)
+                    results[svc] = {
+                        "success":     r.get("success"),
+                        "steps":       len(r.get("steps", [])),
+                        "screenshots": r.get("screenshots", []),
+                        "errors":      r.get("errors", []),
+                    }
+                    if not r.get("success"):
+                        errors.append(svc)
+
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    import concurrent.futures
+                    with concurrent.futures.ThreadPoolExecutor() as pool:
+                        pool.submit(asyncio.run, _run_all()).result(timeout=1800)
+                else:
+                    loop.run_until_complete(_run_all())
+            except Exception as e:
+                return {"success": False, "error": str(e), "partial_results": results}
+        finally:
+            bf.stop_sync()
+
+        return {
+            "success":          len(errors) == 0,
+            "services_total":   len(services),
+            "services_ok":      [s for s in services if results.get(s, {}).get("success")],
+            "services_failed":  errors,
+            "results":          results,
+        }
+
+    def _build_credentials(self, service: str, extra: Dict) -> Dict:
+        """
+        Assemble the credentials dict for a service from the vault + extras.
+        Adds common fields like first_name, last_name, full_name, site_title.
+        """
+        profile = {}
+        try:
+            import ast
+            raw = self._vault.get("kong", "founder_profile")
+            if raw:
+                profile = ast.literal_eval(raw)
+        except Exception:
+            pass
+
+        username = self._vault.get(service, "username") or ""
+        password = self._vault.get(service, "password") or ""
+        email    = self._vault.get(service, "setup_email") or \
+                   self._vault.get("kong", "setup_email") or ""
+
+        base_handle = profile.get("base_handle", "founder")
+        creds = {
+            "username":         username,
+            "password":         password,
+            "password_confirm": password,
+            "email":            email,
+            "first_name":       profile.get("first_name", "Founder"),
+            "last_name":        profile.get("last_name",  "Atlas"),
+            "full_name":        profile.get("full_name",  f"Founder Atlas"),
+            "site_title":       profile.get("site_title", f"LaunchOps {service.title()} Site"),
+            # Service-specific URL overrides (from config or defaults)
+            "wp_url":           self._app_config.get("wordpress_url", "http://137.220.36.18:8080"),
+            "suitecrm_url":     self._app_config.get("suitecrm_url",  "http://137.220.36.18:8081"),
+            "mautic_url":       self._app_config.get("mautic_url",    "http://137.220.36.18:8082"),
+            "matomo_url":       self._app_config.get("matomo_url",    "http://137.220.36.18:8083"),
+            "vaultwarden_url":  self._app_config.get("vaultwarden_url","http://137.220.36.18:8000"),
+            # DB credentials (for self-hosted installers)
+            "db_host":          self._app_config.get("db_host",     "mariadb"),
+            "db_name":          self._app_config.get("db_name",     service.replace("-", "_")),
+            "db_username":      self._app_config.get("db_username", "root"),
+            "db_password":      self._vault.get("mariadb", "password") or "",
+        }
+        creds.update(extra)
+        return creds
 
     # ── Intake (≤5 questions) ─────────────────────────────────────────────────
 

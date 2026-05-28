@@ -101,6 +101,7 @@ class KeyKeeper(BaseAgent):
             "verify_handshake": self._task_verify_handshake,
             "poll_otp":         self._task_poll_otp,
             "poll_link":        self._task_poll_link,
+            "fetch_otp":        self._task_fetch_otp,
             "get_latest":       self._task_get_latest_email,
             "status":           self._task_status,
         }
@@ -108,6 +109,43 @@ class KeyKeeper(BaseAgent):
         if not fn:
             return {"success": False, "error": f"Unknown task type: {t}"}
         return fn(task)
+
+    # ── Unified OTP fetch (called by BrowserForge) ──────────────────────────
+
+    def _task_fetch_otp(self, task: Dict) -> Dict:
+        """
+        Unified entry point called by BrowserForge._wait_for_otp().
+        Dispatches to poll_otp or poll_link based on otp_type.
+
+        otp_type values:
+          'email_code'        — numeric/alphanumeric OTP code
+          'verification_link' — clickable verification URL
+          'magic_link'        — alias for verification_link
+        """
+        otp_type = task.get("otp_type", "email_code")
+        service  = task.get("service", "unknown")
+        timeout  = task.get("timeout", 120)  # BrowserForge default: 2 min
+
+        if otp_type in ("verification_link", "magic_link"):
+            result = self._task_poll_link({"service": service, "timeout": timeout})
+            if result.get("success"):
+                # Return as 'otp' key so BrowserForge can navigate to it
+                return {
+                    "success": True,
+                    "otp":     result.get("link"),
+                    "type":    "link",
+                }
+            return result
+        else:
+            # Default: numeric/alphanumeric code
+            result = self._task_poll_otp({"service": service, "timeout": timeout})
+            if result.get("success"):
+                return {
+                    "success": True,
+                    "otp":     result.get("otp"),
+                    "type":    "code",
+                }
+            return result
 
     # ── Handshake verification ────────────────────────────────────────────────
 
