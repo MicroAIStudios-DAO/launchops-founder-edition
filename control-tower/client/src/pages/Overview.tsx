@@ -220,6 +220,10 @@ export default function Overview() {
     refetchInterval: 6000,
   });
 
+  useEffect(() => {
+    document.title = "LaunchOps Control Tower — Stack Monitor";
+  }, []);
+
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const poll = async () => {
@@ -275,6 +279,23 @@ export default function Overview() {
           REFRESH
         </button>
       </div>
+
+      {/* SEO H2 — visually hidden but present for crawlers and accessibility */}
+      <h2
+        style={{
+          position: "absolute",
+          width: 1,
+          height: 1,
+          padding: 0,
+          margin: -1,
+          overflow: "hidden",
+          clip: "rect(0,0,0,0)",
+          whiteSpace: "nowrap",
+          border: 0,
+        }}
+      >
+        Docker infrastructure monitoring dashboard for WordPress, SuiteCRM, Mautic, Matomo, Vaultwarden, and MariaDB services
+      </h2>
 
       {/* Summary bar */}
       <div

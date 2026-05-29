@@ -4,13 +4,13 @@ import { Bot, ChevronDown, Minimize2, Send, Sparkles, X } from "lucide-react";
 // ── Atlas system context ───────────────────────────────────────────────────────
 const ATLAS_SYSTEM_PROMPT = `You are Atlas, the AI orchestrator for LaunchOps Founder Edition — a no-guardrails AI-powered business operating system.
 
-You coordinate 19 specialized agents organized into 6 teams:
+You coordinate 23 specialized agents organized into 6 teams:
 - KONG (A.P.E.SSH.I.T.T.): CredentialForge, KeyKeeper — automated account creation & 2FA handling
 - Core Pipeline: FounderOS, BusinessBuilder, DynExecutiv, MetricsAgent, ContentEngine
-- Infrastructure: SecurityAgent, WordPressAgent, MauticAgent, StripeAgent
+- Infrastructure: SecurityAgent, WordPressAgent, MauticAgent, StripeAgent, FilesAgent (Nextcloud), RepoAgent (GitHub CI/CD)
 - Legal & Formation: PaperworkAgent, ParalegalBot
 - Intelligence: FundingIntelligence, ExecAICoach
-- Operations: AnalyticsAgent, EmailAgent, GrowthAgent, ProjectAgent, DocumentaryTracker, RepoAgent, SupportAgent
+- Operations: AnalyticsAgent, EmailAgent, GrowthAgent, ProjectAgent, SupportAgent (Chatwoot), DocumentaryTracker
 
 The pipeline runs 9 stages in order: intake → auth → formation → infrastructure → legal → payments → funding → coaching → growth
 
@@ -88,11 +88,13 @@ function MessageBubble({ msg }: { msg: Message }) {
           padding: "10px 14px",
           borderRadius: isUser ? "10px 10px 2px 10px" : "2px 10px 10px 10px",
           background: isUser
-            ? "rgba(0,245,255,0.08)"
-            : "rgba(255,255,255,0.04)",
+            ? "rgba(0,245,255,0.10)"
+            : "rgba(255,255,255,0.05)",
+          backdropFilter: "blur(6px)",
+          WebkitBackdropFilter: "blur(6px)",
           border: isUser
-            ? "1px solid rgba(0,245,255,0.2)"
-            : "1px solid rgba(255,255,255,0.06)",
+            ? "1px solid rgba(0,245,255,0.22)"
+            : "1px solid rgba(255,255,255,0.08)",
           fontSize: 12,
           color: "var(--text-primary)",
           fontFamily: "'Share Tech Mono', monospace",
@@ -123,7 +125,7 @@ export default function AtlasAssistant() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: "assistant",
-      content: "Atlas online. I coordinate your 19-agent fleet and the full business pipeline.\n\nYour stack is running on Vultr. What do you need?",
+      content: "Atlas online. I coordinate your 23-agent fleet and the full business pipeline.\n\nYour stack is running on Vultr. What do you need?",
       timestamp: new Date(),
     },
   ]);
@@ -202,13 +204,15 @@ export default function AtlasAssistant() {
           width: 52,
           height: 52,
           borderRadius: "50%",
-          background: "rgba(0,245,255,0.1)",
+          background: "rgba(8, 10, 18, 0.75)",
+          backdropFilter: "blur(20px) saturate(160%)",
+          WebkitBackdropFilter: "blur(20px) saturate(160%)",
           border: "1px solid rgba(0,245,255,0.3)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
-          boxShadow: "0 0 20px rgba(0,245,255,0.2), 0 4px 20px rgba(0,0,0,0.4)",
+          boxShadow: "0 0 0 1px rgba(0,245,255,0.08) inset, 0 0 20px rgba(0,245,255,0.2), 0 4px 20px rgba(0,0,0,0.5)",
           transition: "all 0.2s ease",
           zIndex: 1000,
         }}
@@ -249,9 +253,11 @@ export default function AtlasAssistant() {
         width: 380,
         height: minimized ? 52 : 520,
         borderRadius: 14,
-        background: "var(--bg-surface)",
-        border: "1px solid rgba(0,245,255,0.2)",
-        boxShadow: "0 0 40px rgba(0,245,255,0.1), 0 20px 60px rgba(0,0,0,0.5)",
+        background: "rgba(8, 10, 18, 0.82)",
+        backdropFilter: "blur(28px) saturate(160%) brightness(0.85)",
+        WebkitBackdropFilter: "blur(28px) saturate(160%) brightness(0.85)",
+        border: "1px solid rgba(0,245,255,0.18)",
+        boxShadow: "0 0 0 1px rgba(0,245,255,0.06) inset, 0 0 40px rgba(0,245,255,0.08), 0 24px 80px rgba(0,0,0,0.75), 0 8px 32px rgba(0,0,0,0.6)",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -267,7 +273,9 @@ export default function AtlasAssistant() {
           justifyContent: "space-between",
           padding: "12px 16px",
           borderBottom: minimized ? "none" : "1px solid rgba(255,255,255,0.06)",
-          background: "rgba(0,245,255,0.04)",
+          background: "rgba(0,245,255,0.05)",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
           cursor: minimized ? "pointer" : "default",
           flexShrink: 0,
         }}
@@ -301,7 +309,7 @@ export default function AtlasAssistant() {
               ATLAS
             </div>
             <div style={{ fontSize: 9, color: "var(--neon-green)", fontFamily: "'Share Tech Mono', monospace" }}>
-              ● ONLINE · 19 AGENTS
+              ● ONLINE · 23 AGENTS
             </div>
           </div>
         </div>
@@ -396,12 +404,15 @@ export default function AtlasAssistant() {
           {/* Input */}
           <div
             style={{
-              padding: "10px 12px",
-              borderTop: "1px solid rgba(255,255,255,0.06)",
-              display: "flex",
-              gap: 8,
-              alignItems: "flex-end",
-              flexShrink: 0,
+            padding: "10px 12px",
+            borderTop: "1px solid rgba(255,255,255,0.07)",
+            background: "rgba(0,0,0,0.25)",
+            backdropFilter: "blur(12px)",
+            WebkitBackdropFilter: "blur(12px)",
+            display: "flex",
+            gap: 8,
+            alignItems: "flex-end",
+            flexShrink: 0,
             }}
           >
             <textarea
@@ -413,8 +424,10 @@ export default function AtlasAssistant() {
               rows={1}
               style={{
                 flex: 1,
-                background: "rgba(255,255,255,0.04)",
-                border: "1px solid rgba(0,245,255,0.15)",
+                background: "rgba(255,255,255,0.06)",
+                backdropFilter: "blur(8px)",
+                WebkitBackdropFilter: "blur(8px)",
+                border: "1px solid rgba(0,245,255,0.18)",
                 borderRadius: 8,
                 padding: "8px 12px",
                 color: "var(--text-primary)",

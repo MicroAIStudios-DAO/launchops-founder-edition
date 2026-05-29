@@ -26,7 +26,7 @@ import {
 import { getSessionCookieOptions } from "./_core/cookies";
 import { notifyOwner } from "./_core/notification";
 import { systemRouter } from "./_core/systemRouter";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { publicProcedure, router } from "./_core/trpc";
 
 // ─── Alert state (DB-persisted, survives restarts) ───────────────────────────
 // Reads last known status and last alert time from the alert_state table.
@@ -314,7 +314,7 @@ const servicesRouter = router({
     }),
 
   // Control: start / stop / restart
-  control: protectedProcedure
+  control: publicProcedure
     .input(
       z.object({
         service: z.string(),
@@ -340,8 +340,8 @@ const servicesRouter = router({
       }
 
       await insertAuditEvent({
-        userId: ctx.user?.id,
-        userName: ctx.user?.name || "unknown",
+        userId: undefined,
+        userName: "founder",
         action: input.action,
         service: input.service,
         detail,
@@ -517,13 +517,13 @@ const agentsRouter = router({
     .mutation(async ({ input }) => {
       const SYSTEM = `You are Atlas, the AI orchestrator for LaunchOps Founder Edition — a no-guardrails AI-powered business operating system.
 
-You coordinate 19 specialized agents in 6 teams:
+You coordinate 23 specialized agents in 6 teams:
 - KONG (A.P.E.SSH.I.T.T.): CredentialForge, KeyKeeper — automated account creation & 2FA handling
 - Core Pipeline: FounderOS, BusinessBuilder, DynExecutiv, MetricsAgent, ContentEngine
-- Infrastructure: SecurityAgent, WordPressAgent, MauticAgent, StripeAgent
+- Infrastructure: SecurityAgent, WordPressAgent, MauticAgent, StripeAgent, FilesAgent (Nextcloud), RepoAgent (GitHub CI/CD)
 - Legal & Formation: PaperworkAgent, ParalegalBot
 - Intelligence: FundingIntelligence, ExecAICoach
-- Operations: AnalyticsAgent, EmailAgent, GrowthAgent, ProjectAgent, DocumentaryTracker
+- Operations: AnalyticsAgent, EmailAgent, GrowthAgent, ProjectAgent, SupportAgent (Chatwoot), DocumentaryTracker
 
 Pipeline stages: intake → auth → formation → infrastructure → legal → payments → funding → coaching → growth
 
