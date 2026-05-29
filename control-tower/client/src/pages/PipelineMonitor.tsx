@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { trpc } from "../lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -80,6 +81,10 @@ export default function PipelineMonitor() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const lineIdRef = useRef(0);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const rawOutputRef = useRef<string[]>([]);
+
+  // Vault ingestion — fires automatically when a KONG run completes
+  const vaultIngest = trpc.vault.ingest.useMutation();
 
   // ── Auto-scroll ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -135,7 +140,9 @@ export default function PipelineMonitor() {
     });
 
     es.addEventListener("line", (e) => {
-      addLine("line", JSON.parse(e.data));
+      const text = JSON.parse(e.data) as string;
+      addLine("line", text);
+      rawOutputRef.current.push(text);
     });
 
     es.addEventListener("error_msg", (e) => {
@@ -143,9 +150,29 @@ export default function PipelineMonitor() {
     });
 
     es.addEventListener("done", (e) => {
-      addLine("done", JSON.parse(e.data));
+      const msg = JSON.parse(e.data) as string;
+      addLine("done", msg);
       setRunning(false);
       es.close();
+
+      // Auto-ingest vault delivery when a KONG run completes
+      const isKong = selectedCmd === "kong" || selectedCmd === "stage:auth";
+      if (isKong && rawOutputRef.current.length > 0) {
+        const runId = `kong-${Date.now()}`;
+        const rawOutput = rawOutputRef.current.join("\n");
+        vaultIngest.mutate(
+          { runId, rawOutput },
+          {
+            onSuccess: (result) => {
+              addLine("system", `[Vault] Credentials stored. Download token ready in Controls panel.`);
+            },
+            onError: () => {
+              addLine("system", "[Vault] Could not save to vault — check Controls panel manually.");
+            },
+          }
+        );
+      }
+      rawOutputRef.current = [];
     });
 
     // SSE onerror fires on connection close too — only show if still running

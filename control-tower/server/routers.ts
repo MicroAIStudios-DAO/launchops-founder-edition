@@ -4,17 +4,23 @@ import { invokeLLM } from "./_core/llm";
 import { promisify } from "util";
 import { z } from "zod";
 import {
+  createVaultDelivery,
   getAlertState,
   getAuditEvents,
   getExportData,
   getHealthChecksByService,
   getLatestHealthChecks,
+  getLatestVaultDelivery,
   getLogSnapshots,
   getStatsHistory,
+  getVaultDeliveryByToken,
   insertAuditEvent,
   insertHealthCheck,
   insertLogSnapshot,
   insertStatsReading,
+  listVaultDeliveries,
+  markVaultDeliveryDownloaded,
+  updateVaultDeliveryStatus,
   upsertAlertState,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
@@ -587,6 +593,114 @@ Be direct, specific, and action-oriented. Speak like a brilliant co-founder who 
   }),
 });
 
+// ─── Vault Router ─────────────────────────────────────────────────────────────
+const vaultRouter = router({
+  /**
+   * Ingest KONG run output and create a vault delivery record.
+   * Called automatically by the Pipeline Monitor when a KONG run completes.
+   */
+  ingest: publicProcedure
+    .input(
+      z.object({
+        runId: z.string(),
+        rawOutput: z.string(),
+        deliveryEmail: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const crypto = await import("crypto");
+      const token = crypto.randomBytes(32).toString("hex");
+      const tokenExpiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000); // 72h
+
+      // Parse provisioned services from the raw output
+      const serviceMatches = input.rawOutput.match(/\[(CredentialForge|KONG)\]\s+(\w+)\s+→\s+PROVISIONED/g) || [];
+      const services = serviceMatches.map((m) => {
+        const match = m.match(/→\s+PROVISIONED/);
+        const serviceMatch = m.match(/\]\s+(\w+)\s+→/);
+        return serviceMatch ? serviceMatch[1] : null;
+      }).filter(Boolean);
+
+      // Also detect from lines like "✓ WordPress" or "[OK] WordPress"
+      const okMatches = input.rawOutput.match(/(?:✓|\[OK\])\s+(\w+)/g) || [];
+      const okServices = okMatches.map((m) => m.replace(/(?:✓|\[OK\])\s+/, "").trim());
+      const allServices = Array.from(new Set([...services, ...okServices]));
+
+      const record = await createVaultDelivery({
+        runId: input.runId,
+        status: "ready",
+        servicesProvisioned: JSON.stringify(allServices),
+        downloadToken: token,
+        tokenExpiresAt,
+        deliveryEmail: input.deliveryEmail || null,
+        rawOutput: input.rawOutput.slice(0, 50000), // cap at 50KB
+      });
+
+      // Notify owner
+      const serviceList = allServices.length > 0 ? allServices.join(", ") : "(parsing in progress)";
+      await notifyOwner({
+        title: "KONG Vault Ready",
+        content: `KONG run ${input.runId} completed. Services provisioned: ${serviceList}. Credentials ready for secure download.`,
+      }).catch(() => {});
+
+      return {
+        success: true,
+        runId: input.runId,
+        downloadToken: token,
+        servicesProvisioned: allServices,
+        expiresAt: tokenExpiresAt.toISOString(),
+      };
+    }),
+
+  /** List recent vault deliveries */
+  list: publicProcedure.query(async () => {
+    const rows = await listVaultDeliveries(10);
+    return rows.map((r) => ({
+      id: r.id,
+      runId: r.runId,
+      status: r.status,
+      servicesProvisioned: r.servicesProvisioned ? JSON.parse(r.servicesProvisioned) : [],
+      downloadToken: r.downloadToken,
+      tokenExpiresAt: r.tokenExpiresAt?.toISOString() ?? null,
+      downloadedAt: r.downloadedAt?.toISOString() ?? null,
+      deliveryEmail: r.deliveryEmail,
+      createdAt: r.createdAt.toISOString(),
+    }));
+  }),
+
+  /** Get the latest vault delivery */
+  latest: publicProcedure.query(async () => {
+    const r = await getLatestVaultDelivery();
+    if (!r) return null;
+    return {
+      id: r.id,
+      runId: r.runId,
+      status: r.status,
+      servicesProvisioned: r.servicesProvisioned ? JSON.parse(r.servicesProvisioned) : [],
+      downloadToken: r.downloadToken,
+      tokenExpiresAt: r.tokenExpiresAt?.toISOString() ?? null,
+      downloadedAt: r.downloadedAt?.toISOString() ?? null,
+      deliveryEmail: r.deliveryEmail,
+      createdAt: r.createdAt.toISOString(),
+    };
+  }),
+
+  /** Mark a token as downloaded */
+  markDownloaded: publicProcedure
+    .input(z.object({ token: z.string() }))
+    .mutation(async ({ input }) => {
+      await markVaultDeliveryDownloaded(input.token);
+      return { success: true };
+    }),
+
+  /** Expire a vault delivery manually */
+  expire: publicProcedure
+    .input(z.object({ runId: z.string() }))
+    .mutation(async ({ input }) => {
+      await updateVaultDeliveryStatus(input.runId, "expired");
+      return { success: true };
+    }),
+});
+
 export const appRouter = router({
   system: systemRouter,
   agents: agentsRouter,
@@ -603,6 +717,7 @@ export const appRouter = router({
   logs: logsRouter,
   audit: auditRouter,
   exports: exportsRouter,
+  vault: vaultRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -1,18 +1,21 @@
-import { trpc } from "@/lib/trpc";
 import { useState } from "react";
 import {
   AlertTriangle,
   Bot,
   ChevronDown,
   ChevronRight,
+  Download,
   Key,
+  Lock,
   Play,
   RefreshCw,
   Shield,
   Square,
+  Vault,
   Zap,
 } from "lucide-react";
 import { toast } from "sonner";
+import { trpc } from "../lib/trpc";
 
 const SERVICES = ["WordPress", "SuiteCRM", "Mautic", "Matomo", "Vaultwarden", "MariaDB"];
 
@@ -83,6 +86,11 @@ export default function Controls() {
   const latestQuery    = trpc.services.latest.useQuery(undefined, { refetchInterval: 5000 });
   const controlMutation = trpc.services.control.useMutation();
   const kongMutation   = trpc.agents.runAccountCreation.useMutation();
+
+  // Vault delivery
+  const vaultLatest     = trpc.vault.latest.useQuery(undefined, { refetchInterval: 10000 });
+  const vaultMarkDl     = trpc.vault.markDownloaded.useMutation();
+  const [vaultExpanded, setVaultExpanded] = useState(true);
 
   const getStatus = (service: string) => {
     const row = latestQuery.data?.find((r: any) => r.service === service);
@@ -482,6 +490,249 @@ export default function Controls() {
               ⚠ KONG requires CredentialForge to have run intake first. Credentials are stored in the encrypted vault.
               GitHub and Stripe may require manual CAPTCHA solve — you will be notified.
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* ─── Vault Delivery Panel ─────────────────────────────────────────── */}
+      <div
+        className="cyber-card"
+        style={{
+          marginBottom: 20,
+          borderColor: vaultLatest.data?.status === "ready"
+            ? "rgba(0,255,136,0.4)"
+            : "rgba(99,91,255,0.2)",
+          boxShadow: vaultLatest.data?.status === "ready"
+            ? "0 0 30px rgba(0,255,136,0.08)"
+            : "none",
+        }}
+      >
+        {/* Header */}
+        <button
+          onClick={() => setVaultExpanded((v) => !v)}
+          style={{
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            background: "none",
+            border: "none",
+            cursor: "pointer",
+            padding: 0,
+            marginBottom: vaultExpanded ? 16 : 0,
+          }}
+        >
+          <Lock size={14} style={{ color: "var(--neon-green)" }} />
+          <span
+            className="font-display"
+            style={{ fontSize: 12, fontWeight: 700, color: "var(--neon-green)", letterSpacing: "0.1em", flex: 1, textAlign: "left" }}
+          >
+            VAULT DELIVERY
+          </span>
+          {vaultLatest.data?.status === "ready" && (
+            <span
+              style={{
+                fontSize: 9,
+                fontFamily: "'Share Tech Mono', monospace",
+                color: "var(--neon-green)",
+                background: "rgba(0,255,136,0.1)",
+                border: "1px solid rgba(0,255,136,0.3)",
+                borderRadius: 3,
+                padding: "2px 7px",
+                letterSpacing: "0.06em",
+              }}
+            >
+              READY
+            </span>
+          )}
+          {vaultExpanded ? <ChevronDown size={12} style={{ color: "var(--text-muted)" }} /> : <ChevronRight size={12} style={{ color: "var(--text-muted)" }} />}
+        </button>
+
+        {vaultExpanded && (
+          <div>
+            {!vaultLatest.data ? (
+              <div
+                style={{
+                  padding: "20px 0",
+                  textAlign: "center",
+                  fontSize: 11,
+                  color: "var(--text-muted)",
+                  fontFamily: "'Share Tech Mono', monospace",
+                  lineHeight: 1.8,
+                }}
+              >
+                <Lock size={24} style={{ color: "rgba(0,255,136,0.2)", marginBottom: 10, display: "block", margin: "0 auto 10px" }} />
+                NO VAULT DELIVERIES YET
+                <br />
+                <span style={{ fontSize: 10 }}>Run KONG to provision accounts. Credentials will appear here.</span>
+              </div>
+            ) : (
+              <div>
+                {/* Status row */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 14,
+                    padding: "10px 14px",
+                    background: "rgba(0,0,0,0.3)",
+                    border: `1px solid ${
+                      vaultLatest.data.status === "ready" ? "rgba(0,255,136,0.2)"
+                      : vaultLatest.data.status === "downloaded" ? "rgba(10,132,255,0.2)"
+                      : "rgba(255,221,0,0.2)"
+                    }`,
+                    borderRadius: 6,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      background:
+                        vaultLatest.data.status === "ready" ? "var(--neon-green)"
+                        : vaultLatest.data.status === "downloaded" ? "#0a84ff"
+                        : "var(--neon-yellow)",
+                      boxShadow: `0 0 6px ${
+                        vaultLatest.data.status === "ready" ? "var(--neon-green)"
+                        : vaultLatest.data.status === "downloaded" ? "#0a84ff"
+                        : "var(--neon-yellow)"
+                      }`,
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, fontFamily: "'Share Tech Mono', monospace", color: "var(--text-primary)", letterSpacing: "0.04em" }}>
+                      RUN {vaultLatest.data.runId}
+                    </div>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>
+                      {new Date(vaultLatest.data.createdAt).toLocaleString()}
+                      {vaultLatest.data.downloadedAt && ` · Downloaded ${new Date(vaultLatest.data.downloadedAt).toLocaleString()}`}
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 9,
+                      fontFamily: "'Share Tech Mono', monospace",
+                      color:
+                        vaultLatest.data.status === "ready" ? "var(--neon-green)"
+                        : vaultLatest.data.status === "downloaded" ? "#0a84ff"
+                        : "var(--neon-yellow)",
+                      letterSpacing: "0.06em",
+                    }}
+                  >
+                    {vaultLatest.data.status.toUpperCase()}
+                  </div>
+                </div>
+
+                {/* Services provisioned */}
+                {vaultLatest.data.servicesProvisioned?.length > 0 && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "'Share Tech Mono', monospace", marginBottom: 8, letterSpacing: "0.06em" }}>
+                      SERVICES PROVISIONED:
+                    </div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                      {vaultLatest.data.servicesProvisioned.map((svc: string) => (
+                        <span
+                          key={svc}
+                          style={{
+                            fontSize: 10,
+                            fontFamily: "'Share Tech Mono', monospace",
+                            padding: "3px 8px",
+                            borderRadius: 3,
+                            background: "rgba(0,255,136,0.06)",
+                            border: "1px solid rgba(0,255,136,0.2)",
+                            color: "var(--neon-green)",
+                          }}
+                        >
+                          ✓ {svc}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Token expiry */}
+                {vaultLatest.data.tokenExpiresAt && vaultLatest.data.status === "ready" && (
+                  <div style={{ fontSize: 10, color: "var(--text-muted)", fontFamily: "'Share Tech Mono', monospace", marginBottom: 14 }}>
+                    ⏱ TOKEN EXPIRES: {new Date(vaultLatest.data.tokenExpiresAt).toLocaleString()}
+                  </div>
+                )}
+
+                {/* Download button */}
+                {vaultLatest.data.status === "ready" && vaultLatest.data.downloadToken && (
+                  <button
+                    onClick={async () => {
+                      const token = vaultLatest.data!.downloadToken!;
+                      // Build credential text from raw output stored in vault
+                      const content = [
+                        "╔══════════════════════════════════════════════════════════╗",
+                        "║        LAUNCHOPS KONG — CREDENTIAL VAULT DELIVERY        ║",
+                        "╚══════════════════════════════════════════════════════════╝",
+                        "",
+                        `Run ID   : ${vaultLatest.data!.runId}`,
+                        `Generated: ${new Date(vaultLatest.data!.createdAt).toLocaleString()}`,
+                        `Services : ${(vaultLatest.data!.servicesProvisioned || []).join(", ") || "(see raw output)"}`,
+                        "",
+                        "══════════════════════════════════════════════════════════",
+                        "  IMPORTANT: Store this file in a secure password manager.",
+                        "  Delete it from your downloads folder after import.",
+                        "══════════════════════════════════════════════════════════",
+                        "",
+                        "[ CREDENTIALS ARE STORED IN THE ENCRYPTED VAULT ON SERVER ]",
+                        "[ Run: venv/bin/python3 launchops.py task credential_forge retrieve ]",
+                        "[ to export the full decrypted credential bundle to your terminal. ]",
+                      ].join("\n");
+
+                      const blob = new Blob([content], { type: "text/plain" });
+                      const url  = URL.createObjectURL(blob);
+                      const a    = document.createElement("a");
+                      a.href     = url;
+                      a.download = `kong-vault-${vaultLatest.data!.runId}.txt`;
+                      a.click();
+                      URL.revokeObjectURL(url);
+
+                      // Mark as downloaded
+                      await vaultMarkDl.mutateAsync({ token });
+                      await vaultLatest.refetch();
+
+                      toast.success("Vault delivery downloaded", {
+                        description: "Store this file in a secure password manager and delete from downloads.",
+                        style: { background: "var(--bg-elevated)", border: "1px solid var(--neon-green)", color: "var(--neon-green)" },
+                      });
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "11px 16px",
+                      borderRadius: 4,
+                      fontSize: 12,
+                      fontFamily: "'Share Tech Mono', monospace",
+                      cursor: "pointer",
+                      border: "1px solid var(--neon-green)",
+                      background: "rgba(0,255,136,0.06)",
+                      color: "var(--neon-green)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: 8,
+                      letterSpacing: "0.06em",
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(0,255,136,0.12)"; e.currentTarget.style.boxShadow = "0 0 20px rgba(0,255,136,0.2)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(0,255,136,0.06)"; e.currentTarget.style.boxShadow = "none"; }}
+                  >
+                    <Download size={13} />
+                    SECURE DOWNLOAD — VAULT DELIVERY
+                  </button>
+                )}
+
+                {vaultLatest.data.status === "downloaded" && (
+                  <div style={{ fontSize: 11, color: "#0a84ff", fontFamily: "'Share Tech Mono', monospace", textAlign: "center", padding: "10px 0" }}>
+                    ✓ CREDENTIALS DOWNLOADED · Token consumed
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -90,3 +90,32 @@ export const auditEvents = mysqlTable("audit_events", {
 });
 
 export type AuditEvent = typeof auditEvents.$inferSelect;
+
+// ─── Alert state (persisted so transitions survive restarts) ───────────────────
+export const alertState = mysqlTable("alert_state", {
+  id: int("id").autoincrement().primaryKey(),
+  service: varchar("service", { length: 64 }).notNull().unique(),
+  lastStatus: mysqlEnum("last_status", ["healthy", "warning", "down"]).notNull().default("healthy"),
+  lastAlertAt: timestamp("last_alert_at"),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AlertState = typeof alertState.$inferSelect;
+
+// ─── Vault deliveries (KONG credential bundles) ───────────────────────────────
+export const vaultDeliveries = mysqlTable("vault_deliveries", {
+  id: int("id").autoincrement().primaryKey(),
+  runId: varchar("run_id", { length: 64 }).notNull().unique(),
+  status: mysqlEnum("status", ["pending", "ready", "downloaded", "expired"]).notNull().default("pending"),
+  servicesProvisioned: text("services_provisioned"), // JSON array of service names
+  credentialData: text("credential_data"),           // AES-256 encrypted JSON blob
+  downloadToken: varchar("download_token", { length: 128 }).unique(),
+  tokenExpiresAt: timestamp("token_expires_at"),
+  downloadedAt: timestamp("downloaded_at"),
+  deliveryEmail: varchar("delivery_email", { length: 320 }),
+  rawOutput: text("raw_output"),                     // full KONG terminal output
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type VaultDelivery = typeof vaultDeliveries.$inferSelect;
+export type InsertVaultDelivery = typeof vaultDeliveries.$inferInsert;

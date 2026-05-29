@@ -1,12 +1,15 @@
 import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import type { InsertUser } from "../drizzle/schema";
+import type { InsertVaultDelivery } from "../drizzle/schema";
 import {
+  alertState,
   auditEvents,
   healthChecks,
   logSnapshots,
   statsReadings,
   users,
+  vaultDeliveries,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -245,4 +248,101 @@ export async function getExportData(
     return conds.length > 0 ? q.where(and(...conds)) : q;
   }
   return [];
+}
+
+// ─── Alert state (persisted transition tracking) ───────────────────────────
+export async function getAlertState(service: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(alertState)
+    .where(eq(alertState.service, service))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function upsertAlertState(data: {
+  service: string;
+  lastStatus: "healthy" | "warning" | "down";
+  lastAlertAt?: Date | null;
+}) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .insert(alertState)
+    .values(data)
+    .onDuplicateKeyUpdate({
+      set: {
+        lastStatus: data.lastStatus,
+        ...(data.lastAlertAt !== undefined ? { lastAlertAt: data.lastAlertAt } : {}),
+      },
+    });
+}
+
+// ─── Vault Deliveries ────────────────────────────────────────────────────────────────
+export async function createVaultDelivery(data: InsertVaultDelivery) {
+  const db = await getDb();
+  if (!db) return null;
+  await db.insert(vaultDeliveries).values(data);
+  const rows = await db
+    .select()
+    .from(vaultDeliveries)
+    .where(eq(vaultDeliveries.runId, data.runId!))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getVaultDeliveryByToken(token: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(vaultDeliveries)
+    .where(eq(vaultDeliveries.downloadToken, token))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function getLatestVaultDelivery() {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db
+    .select()
+    .from(vaultDeliveries)
+    .orderBy(desc(vaultDeliveries.createdAt))
+    .limit(1);
+  return rows[0] ?? null;
+}
+
+export async function listVaultDeliveries(limit = 10) {
+  const db = await getDb();
+  if (!db) return [];
+  return db
+    .select()
+    .from(vaultDeliveries)
+    .orderBy(desc(vaultDeliveries.createdAt))
+    .limit(limit);
+}
+
+export async function markVaultDeliveryDownloaded(token: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(vaultDeliveries)
+    .set({ status: "downloaded", downloadedAt: new Date() })
+    .where(eq(vaultDeliveries.downloadToken, token));
+}
+
+export async function updateVaultDeliveryStatus(
+  runId: string,
+  status: "pending" | "ready" | "downloaded" | "expired",
+  extra?: Partial<InsertVaultDelivery>,
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(vaultDeliveries)
+    .set({ status, ...extra })
+    .where(eq(vaultDeliveries.runId, runId));
 }
