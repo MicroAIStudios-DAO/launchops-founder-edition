@@ -85,8 +85,10 @@ services:
       - suitecrm_cache:/var/www/html/cache
       - suitecrm_custom:/var/www/html/custom
       - suitecrm_modules:/var/www/html/modules
-      - suitecrm_config:/var/www/html/config_si.php
-      - suitecrm_config_main:/var/www/html/config.php
+      # config_si.php and config.php are single files — use bind mounts, not named volumes.
+      # Named volumes cannot mount to file paths (Docker creates a directory instead).
+      - ./data/suitecrm/config_si.php:/var/www/html/config_si.php
+      - ./data/suitecrm/config.php:/var/www/html/config.php
     networks:
       - launchops_net
     depends_on:
@@ -219,5 +221,3 @@ volumes:
   suitecrm_cache:
   suitecrm_custom:
   suitecrm_modules:
-  suitecrm_config:
-  suitecrm_config_main:
