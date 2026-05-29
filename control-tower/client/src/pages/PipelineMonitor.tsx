@@ -17,8 +17,12 @@ import {
   ClipboardCopy,
   Download,
   Play,
+  RefreshCw,
   RotateCcw,
   Terminal,
+  Wifi,
+  WifiOff,
+  AlertTriangle,
 } from "lucide-react";
 
 // ── Command registry ──────────────────────────────────────────────────────────
@@ -38,6 +42,9 @@ const COMMANDS = [
 ] as const;
 
 type CommandId = (typeof COMMANDS)[number]["id"];
+
+// ── Connection states ─────────────────────────────────────────────────────────
+type ConnState = "idle" | "connecting" | "connected" | "disconnected" | "error";
 
 // ── Line types & colours ──────────────────────────────────────────────────────
 type LineKind = "start" | "line" | "error" | "done" | "system";
@@ -69,19 +76,50 @@ function linePrefix(kind: LineKind): string {
   }
 }
 
+// ── Connection status badge ───────────────────────────────────────────────────
+function ConnBadge({ state }: { state: ConnState }) {
+  const cfg: Record<ConnState, { icon: React.ReactNode; label: string; color: string }> = {
+    idle:         { icon: <Terminal className="w-3 h-3" />,      label: "IDLE",         color: "rgba(0,255,255,0.5)" },
+    connecting:   { icon: <Wifi className="w-3 h-3 animate-pulse" />, label: "CONNECTING", color: "#febc2e" },
+    connected:    { icon: <Wifi className="w-3 h-3" />,          label: "LIVE",         color: "var(--neon-green, #00ff88)" },
+    disconnected: { icon: <WifiOff className="w-3 h-3" />,       label: "DISCONNECTED", color: "rgba(255,255,255,0.4)" },
+    error:        { icon: <AlertTriangle className="w-3 h-3" />, label: "ERROR",        color: "#ff4444" },
+  };
+  const { icon, label, color } = cfg[state];
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold tracking-widest"
+      style={{
+        border: `1px solid ${color}`,
+        color,
+        background: `${color}18`,
+        fontFamily: "'Share Tech Mono', monospace",
+      }}
+    >
+      {icon}
+      {label}
+    </span>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function PipelineMonitor() {
   const [selectedCmd, setSelectedCmd] = useState<CommandId>("health");
   const [lines, setLines] = useState<LogLine[]>([]);
-  const [running, setRunning] = useState(false);
+  const [connState, setConnState] = useState<ConnState>("idle");
   const [autoScroll, setAutoScroll] = useState(true);
   const [runCount, setRunCount] = useState(0);
+  const [lastCmd, setLastCmd] = useState<CommandId | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const esRef = useRef<EventSource | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const lineIdRef = useRef(0);
   const viewportRef = useRef<HTMLDivElement>(null);
   const rawOutputRef = useRef<string[]>([]);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const running = connState === "connecting" || connState === "connected";
 
   // Vault ingestion — fires automatically when a KONG run completes
   const vaultIngest = trpc.vault.ingest.useMutation();
@@ -105,6 +143,7 @@ export default function PipelineMonitor() {
   useEffect(() => {
     return () => {
       esRef.current?.close();
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
     };
   }, []);
 
@@ -117,54 +156,72 @@ export default function PipelineMonitor() {
     ]);
   }, []);
 
-  // ── Start run ────────────────────────────────────────────────────────────
-  const startRun = useCallback(() => {
-    if (running) return;
-
-    // Close any previous connection
+  // ── Core connect function — reusable for first run and reconnect ─────────
+  const connect = useCallback((cmd: CommandId, isReconnect = false) => {
+    // Close any existing connection
     esRef.current?.close();
+    if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
 
-    setLines([]);
-    setRunning(true);
-    setRunCount((c) => c + 1);
+    if (!isReconnect) {
+      setLines([]);
+      rawOutputRef.current = [];
+      setRunCount((c) => c + 1);
+    }
+
+    setConnState("connecting");
     setAutoScroll(true);
+    setLastCmd(cmd);
 
-    addLine("system", `Connecting to pipeline server…`);
+    addLine("system", isReconnect
+      ? `[Monitor] Reconnecting to pipeline server… (attempt ${retryCount + 1})`
+      : `[Monitor] Connecting to pipeline server…`
+    );
 
-    const url = `/api/pipeline/run?cmd=${encodeURIComponent(selectedCmd)}`;
+    const url = `/api/pipeline/run?cmd=${encodeURIComponent(cmd)}`;
     const es = new EventSource(url);
     esRef.current = es;
 
-    es.addEventListener("start", (e) => {
+    // ── EventSource.onopen — connection established ──────────────────────
+    es.onopen = () => {
+      setConnState("connected");
+      setRetryCount(0);
+      addLine("system", "[Monitor] ✓ Connected to pipeline server");
+    };
+
+    es.addEventListener("start", (e: MessageEvent) => {
+      setConnState("connected");
       addLine("start", JSON.parse(e.data));
     });
 
-    es.addEventListener("line", (e) => {
+    es.addEventListener("line", (e: MessageEvent) => {
       const text = JSON.parse(e.data) as string;
       addLine("line", text);
       rawOutputRef.current.push(text);
     });
 
-    es.addEventListener("error_msg", (e) => {
-      addLine("error", JSON.parse(e.data));
+    // Fix: server sends "error" events, not "error_msg"
+    es.addEventListener("error", (e: MessageEvent) => {
+      if (e instanceof MessageEvent) {
+        addLine("error", JSON.parse(e.data));
+      }
     });
 
-    es.addEventListener("done", (e) => {
+    es.addEventListener("done", (e: MessageEvent) => {
       const msg = JSON.parse(e.data) as string;
       addLine("done", msg);
-      setRunning(false);
+      setConnState("disconnected");
       es.close();
 
       // Auto-ingest vault delivery when a KONG run completes
-      const isKong = selectedCmd === "kong" || selectedCmd === "stage:auth";
+      const isKong = cmd === "kong" || cmd === "stage:auth";
       if (isKong && rawOutputRef.current.length > 0) {
         const runId = `kong-${Date.now()}`;
         const rawOutput = rawOutputRef.current.join("\n");
         vaultIngest.mutate(
           { runId, rawOutput },
           {
-            onSuccess: (result) => {
-              addLine("system", `[Vault] Credentials stored. Download token ready in Controls panel.`);
+            onSuccess: () => {
+              addLine("system", "[Vault] ✓ Credentials stored. Download token ready in Controls panel.");
             },
             onError: () => {
               addLine("system", "[Vault] Could not save to vault — check Controls panel manually.");
@@ -175,23 +232,39 @@ export default function PipelineMonitor() {
       rawOutputRef.current = [];
     });
 
-    // SSE onerror fires on connection close too — only show if still running
+    // ── SSE onerror — connection failed or dropped mid-run ───────────────
     es.onerror = () => {
-      setRunning((r) => {
-        if (r) {
-          addLine("error", "[Monitor] Connection lost or process ended unexpectedly.");
-        }
-        return false;
-      });
+      const wasConnected = connState === "connected";
       es.close();
+      esRef.current = null;
+
+      // Only treat as error if we never received a "done" event
+      setConnState((prev) => {
+        if (prev === "disconnected") return "disconnected"; // clean finish
+        addLine("error", "[Monitor] ✖ Connection lost. Use Reconnect to retry.");
+        return "error";
+      });
     };
-  }, [running, selectedCmd, addLine]);
+  }, [addLine, connState, retryCount, vaultIngest]);
+
+  // ── Start run ────────────────────────────────────────────────────────────
+  const startRun = useCallback(() => {
+    if (running) return;
+    connect(selectedCmd, false);
+  }, [running, selectedCmd, connect]);
+
+  // ── Reconnect — re-runs the last command ────────────────────────────────
+  const reconnect = useCallback(() => {
+    const cmd = lastCmd ?? selectedCmd;
+    setRetryCount((c) => c + 1);
+    connect(cmd, true);
+  }, [lastCmd, selectedCmd, connect]);
 
   // ── Stop run ─────────────────────────────────────────────────────────────
   const stopRun = useCallback(() => {
     esRef.current?.close();
     addLine("system", "[Monitor] Run cancelled by user.");
-    setRunning(false);
+    setConnState("disconnected");
   }, [addLine]);
 
   // ── Clear terminal ───────────────────────────────────────────────────────
@@ -220,29 +293,58 @@ export default function PipelineMonitor() {
   // ── Derived ──────────────────────────────────────────────────────────────
   const cmdMeta = COMMANDS.find((c) => c.id === selectedCmd)!;
   const groups = Array.from(new Set(COMMANDS.map((c) => c.group)));
+  const canReconnect = (connState === "disconnected" || connState === "error") && lastCmd !== null;
 
   return (
     <div className="flex flex-col h-full gap-4 p-6" style={{ fontFamily: "'Share Tech Mono', monospace" }}>
       {/* ── Header ── */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-3 flex-wrap">
         <Terminal className="w-6 h-6" style={{ color: "var(--neon-cyan)" }} />
         <h1 className="text-xl font-bold tracking-widest uppercase" style={{ color: "var(--neon-cyan)" }}>
           Pipeline Run Monitor
         </h1>
-        {running && (
-          <Badge
-            className="animate-pulse ml-2"
-            style={{ background: "var(--neon-green)", color: "#000", fontFamily: "inherit" }}
-          >
-            ● LIVE
-          </Badge>
-        )}
-        {!running && runCount > 0 && (
-          <Badge style={{ background: "transparent", border: "1px solid var(--neon-cyan)", color: "var(--neon-cyan)", fontFamily: "inherit" }}>
-            IDLE
-          </Badge>
+        <ConnBadge state={connState} />
+        {retryCount > 0 && (
+          <span className="text-xs opacity-40" style={{ color: "var(--neon-cyan)" }}>
+            reconnect #{retryCount}
+          </span>
         )}
       </div>
+
+      {/* ── Connection error banner ── */}
+      {connState === "error" && (
+        <div
+          className="flex items-center gap-3 px-4 py-3 rounded-lg"
+          style={{
+            background: "rgba(255,68,68,0.08)",
+            border: "1px solid rgba(255,68,68,0.4)",
+            color: "#ff6666",
+          }}
+        >
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span className="text-sm flex-1">
+            Pipeline server connection lost.{" "}
+            {lastCmd && (
+              <span>Last command: <strong>{lastCmd}</strong>. </span>
+            )}
+            Click <strong>Reconnect</strong> to retry.
+          </span>
+          <Button
+            onClick={reconnect}
+            size="sm"
+            className="gap-2 font-bold tracking-widest uppercase shrink-0"
+            style={{
+              background: "rgba(255,68,68,0.15)",
+              border: "1px solid #ff4444",
+              color: "#ff4444",
+              fontFamily: "inherit",
+            }}
+          >
+            <RefreshCw className="w-3 h-3" />
+            Reconnect
+          </Button>
+        </div>
+      )}
 
       {/* ── Controls bar ── */}
       <div className="flex flex-wrap items-center gap-3">
@@ -307,6 +409,23 @@ export default function PipelineMonitor() {
           >
             <CircleStop className="w-4 h-4" />
             Stop
+          </Button>
+        )}
+
+        {/* Reconnect button — always visible when applicable */}
+        {canReconnect && (
+          <Button
+            onClick={reconnect}
+            className="gap-2 font-bold tracking-widest uppercase"
+            style={{
+              background: "rgba(254,188,46,0.12)",
+              border: "1px solid #febc2e",
+              color: "#febc2e",
+              fontFamily: "inherit",
+            }}
+          >
+            <RefreshCw className="w-4 h-4" />
+            Reconnect
           </Button>
         )}
 
@@ -378,9 +497,17 @@ export default function PipelineMonitor() {
         className="flex-1 rounded-lg overflow-hidden flex flex-col"
         style={{
           background: "#050505",
-          border: "1px solid rgba(0,255,136,0.25)",
-          boxShadow: "0 0 30px rgba(0,255,136,0.06), inset 0 0 60px rgba(0,0,0,0.4)",
+          border: `1px solid ${
+            connState === "connected" ? "rgba(0,255,136,0.4)" :
+            connState === "error"     ? "rgba(255,68,68,0.4)" :
+            connState === "connecting"? "rgba(254,188,46,0.4)" :
+            "rgba(0,255,136,0.15)"
+          }`,
+          boxShadow: connState === "connected"
+            ? "0 0 30px rgba(0,255,136,0.1), inset 0 0 60px rgba(0,0,0,0.4)"
+            : "inset 0 0 60px rgba(0,0,0,0.4)",
           minHeight: "300px",
+          transition: "border-color 0.3s ease, box-shadow 0.3s ease",
         }}
       >
         {/* Terminal title bar */}
@@ -392,20 +519,30 @@ export default function PipelineMonitor() {
           <span className="w-3 h-3 rounded-full" style={{ background: "#febc2e" }} />
           <span className="w-3 h-3 rounded-full" style={{ background: "#28c840" }} />
           <span className="ml-3 text-xs tracking-widest opacity-40" style={{ color: "var(--neon-green)" }}>
-            launchops@atlas ~ {selectedCmd}
+            launchops@atlas ~ {lastCmd ?? selectedCmd}
           </span>
-          <span className="ml-auto text-xs opacity-30" style={{ color: "var(--neon-cyan)" }}>
-            {lines.length} lines
+          <span className="ml-auto flex items-center gap-3 text-xs opacity-30" style={{ color: "var(--neon-cyan)" }}>
+            <span>{lines.length} lines</span>
+            {connState === "connecting" && <span className="animate-pulse text-yellow-400">● connecting</span>}
+            {connState === "connected"  && <span className="text-green-400">● live</span>}
+            {connState === "error"      && <span className="text-red-400">● error</span>}
+            {connState === "disconnected" && <span>● done</span>}
           </span>
         </div>
 
         {/* Output area */}
         <ScrollArea className="flex-1" ref={viewportRef as any} onScrollCapture={handleScroll}>
           <div className="p-4 space-y-0.5 text-sm leading-relaxed">
-            {lines.length === 0 && !running && (
+            {lines.length === 0 && connState === "idle" && (
               <div className="text-center py-16 opacity-30" style={{ color: "var(--neon-green)" }}>
                 <Terminal className="w-10 h-10 mx-auto mb-3 opacity-40" />
                 <p className="text-xs tracking-widest uppercase">Select a command and press Run</p>
+              </div>
+            )}
+            {lines.length === 0 && connState === "connecting" && (
+              <div className="text-center py-16" style={{ color: "#febc2e" }}>
+                <Wifi className="w-10 h-10 mx-auto mb-3 animate-pulse opacity-60" />
+                <p className="text-xs tracking-widest uppercase animate-pulse">Connecting to pipeline server…</p>
               </div>
             )}
             {lines.map((l) => (
@@ -431,12 +568,21 @@ export default function PipelineMonitor() {
         <span>Runs this session: {runCount}</span>
         <span>Lines: {lines.length}</span>
         <span>Auto-scroll: {autoScroll ? "ON" : "OFF"}</span>
+        {canReconnect && (
+          <button
+            className="underline"
+            style={{ color: "#febc2e", opacity: 1 }}
+            onClick={reconnect}
+          >
+            ↺ reconnect
+          </button>
+        )}
         {!autoScroll && (
           <button
             className="underline"
             onClick={() => { setAutoScroll(true); bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }}
           >
-            re-enable
+            re-enable scroll
           </button>
         )}
       </div>
