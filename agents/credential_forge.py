@@ -193,24 +193,48 @@ class CredentialForge(BaseAgent):
         try:
             import asyncio
 
+            total = len(services)
+            print(f"  [KONG] Starting account creation for {total} service(s): {', '.join(services)}", flush=True)
+            print(f"  [KONG] Browser: {'headless' if headless else 'visible'} | Vault: active", flush=True)
+            print("", flush=True)
+
             async def _run_all():
                 await bf.start()
-                for svc in services:
+                print(f"  [KONG] ▶ Browser session started", flush=True)
+                for idx, svc in enumerate(services, 1):
+                    print(f"  [KONG] ─────────────────────────────────────────", flush=True)
+                    print(f"  [KONG] [{idx}/{total}] Processing: {svc.upper()}", flush=True)
                     adapter = get_adapter(svc)
                     if adapter is None:
+                        print(f"  [KONG]   ✗ No adapter registered for {svc} — skipping", flush=True)
                         results[svc] = {"success": False, "error": "no adapter registered"}
                         errors.append(svc)
                         continue
                     creds = self._build_credentials(svc, task.get("extra_creds", {}))
+                    print(f"  [KONG]   ✓ Credentials generated for {svc}", flush=True)
+                    print(f"  [KONG]   → Navigating to {adapter.get('url', 'registration page')}...", flush=True)
                     r = await bf.create_account(svc, creds, adapter)
+                    # Print each step taken
+                    for step in r.get("steps", []):
+                        icon = "✓" if step.get("success", True) else "✗"
+                        print(f"  [KONG]   {icon} {step.get('action', step)}", flush=True)
+                    if r.get("otp_used"):
+                        print(f"  [KONG]   ✓ OTP/2FA intercepted and submitted", flush=True)
+                    if r.get("captcha_detected"):
+                        print(f"  [KONG]   ⚠ CAPTCHA detected — manual intervention may be needed", flush=True)
+                    ok = r.get("success")
+                    print(f"  [KONG]   {'✓ PROVISIONED' if ok else '✗ FAILED'}: {svc}", flush=True)
+                    if not ok and r.get("errors"):
+                        print(f"  [KONG]   Error: {r['errors'][0][:120]}", flush=True)
                     results[svc] = {
-                        "success":     r.get("success"),
+                        "success":     ok,
                         "steps":       len(r.get("steps", [])),
                         "screenshots": r.get("screenshots", []),
                         "errors":      r.get("errors", []),
                     }
-                    if not r.get("success"):
+                    if not ok:
                         errors.append(svc)
+                print(f"  [KONG] ─────────────────────────────────────────", flush=True)
 
             try:
                 loop = asyncio.get_event_loop()

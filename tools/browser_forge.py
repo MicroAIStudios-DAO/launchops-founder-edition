@@ -246,14 +246,23 @@ class BrowserForge:
         try:
             # Step 1: Navigate to registration URL
             reg_url = adapter.registration_url(credentials)
+            print(f"  [Browser] Opening {reg_url}", flush=True)
             await self._navigate(reg_url, result)
+            print(f"  [Browser] Page loaded", flush=True)
 
             # Step 2: Execute adapter-defined steps
-            for step in adapter.steps():
+            steps_list = adapter.steps()
+            total_steps = len(steps_list)
+            for i, step in enumerate(steps_list, 1):
+                sname = step.get('name', step.get('type', 'step'))
+                print(f"  [Browser] Step {i}/{total_steps}: {sname}", flush=True)
                 step_result = await self._execute_step(step, credentials, result)
                 result["steps"].append(step_result)
-                if not step_result.get("success") and step.get("required", True):
+                ok = step_result.get("success")
+                print(f"  [Browser]   {'✓' if ok else '✗'} {sname}", flush=True)
+                if not ok and step.get("required", True):
                     result["errors"].append(f"Required step failed: {step.get('name', '?')}")
+                    print(f"  [Browser] ✗ Required step failed — aborting {service_id}", flush=True)
                     await self._screenshot(service_id, "step_failure", result)
                     self._audit(service_id, "step_failure", result)
                     return result
@@ -261,13 +270,16 @@ class BrowserForge:
             # Step 3: Final success screenshot
             await self._screenshot(service_id, "completed", result)
             result["success"] = True
+            print(f"  [Browser] ✓ Account creation complete for {service_id}", flush=True)
             self._audit(service_id, "completed", result)
 
         except PlaywrightTimeout as e:
+            print(f"  [Browser] ✗ Timeout on {service_id}: {e}", flush=True)
             result["errors"].append(f"Timeout: {e}")
             await self._screenshot(service_id, "timeout", result)
             self._audit(service_id, "timeout", result)
         except Exception as e:
+            print(f"  [Browser] ✗ Error on {service_id}: {e}", flush=True)
             result["errors"].append(f"Unexpected error: {e}")
             await self._screenshot(service_id, "error", result)
             self._audit(service_id, "error", result)
@@ -339,18 +351,22 @@ class BrowserForge:
                 sr["path"] = path
 
             elif stype == "otp_gate":
+                print(f"  [Browser]   ⏳ Waiting for OTP/2FA code from KeyKeeper...", flush=True)
                 otp = await self._wait_for_otp(step.get("otp_type", "email_code"))
                 if otp:
+                    print(f"  [Browser]   ✓ OTP received — submitting", flush=True)
                     ok = await self._fill_field("otp", otp, step.get("selector"))
                     if ok:
                         await self._page.keyboard.press("Enter")
                     sr["success"] = ok
                     sr["otp_received"] = True
                 else:
+                    print(f"  [Browser]   ✗ OTP timeout — KeyKeeper did not return a code", flush=True)
                     sr["success"] = False
                     sr["error"] = "OTP timeout — KeyKeeper did not return a code in time"
 
             elif stype == "captcha_gate":
+                print(f"  [Browser]   ⚠ CAPTCHA detected — notifying owner, waiting up to 5 min...", flush=True)
                 # Cannot auto-solve; notify owner and wait up to 5 minutes
                 sr["success"] = await self._handle_captcha(result.get("service", "?"))
 
