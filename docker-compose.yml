@@ -189,10 +189,15 @@ services:
       - VITE_OAUTH_PORTAL_URL=${VITE_OAUTH_PORTAL_URL:-}
       - OWNER_OPEN_ID=${OWNER_OPEN_ID:-}
       - OWNER_NAME=${OWNER_NAME:-}
+      # Path to launchops-founder-edition on the host — required for Pipeline Monitor SSE
+      # The SSE endpoint runs launchops.py directly from this directory
+      - LAUNCHOPS_PATH=/root/launchops-founder-edition
     volumes:
       # Docker socket — required for container stats, logs, and control
       # NOTE: writable (no :ro) so start/stop/restart commands can execute
       - /var/run/docker.sock:/var/run/docker.sock
+      # Mount the founder-edition directory so the pipeline SSE can run launchops.py
+      - /root/launchops-founder-edition:/root/launchops-founder-edition:ro
     networks:
       - launchops_net
     depends_on:
