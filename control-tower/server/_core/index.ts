@@ -2,6 +2,9 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
+import { spawn } from "child_process";
+import path from "path";
+import fs from "fs";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
@@ -36,6 +39,96 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+
+  // ── Pipeline Run Monitor: SSE streaming endpoint ────────────────────────────
+  // Allowed commands whitelist — prevents arbitrary shell execution
+  const ALLOWED_COMMANDS: Record<string, string[]> = {
+    health:      ["health"],
+    status:      ["status"],
+    kong:        ["kong"],
+    launch:      ["launch"],
+    "stage:auth":       ["stage", "auth"],
+    "stage:formation":  ["stage", "formation"],
+    "stage:infrastructure": ["stage", "infrastructure"],
+    "stage:legal":      ["stage", "legal"],
+    "stage:funding":    ["stage", "funding"],
+    "stage:deploy":     ["stage", "deploy"],
+    security:    ["security"],
+    documentary: ["documentary"],
+  };
+
+  app.get("/api/pipeline/run", (req, res) => {
+    const cmd = (req.query.cmd as string) || "health";
+    const args = ALLOWED_COMMANDS[cmd];
+    if (!args) {
+      res.status(400).json({ error: "Unknown command" });
+      return;
+    }
+
+    // SSE headers
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.setHeader("X-Accel-Buffering", "no");
+    res.flushHeaders();
+
+    const send = (type: string, data: string) => {
+      res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+    };
+
+    send("start", `[LaunchOps] Running: launchops.py ${args.join(" ")}`);
+
+    // Resolve the launchops-founder-edition directory
+    const projectRoot = process.env.LAUNCHOPS_PATH ||
+      path.resolve(process.cwd(), "../../launchops-founder-edition");
+
+    // Prefer venv python, fall back to system python3
+    const venvPython = path.join(projectRoot, "venv", "bin", "python3");
+    const pythonBin = fs.existsSync(venvPython) ? venvPython : "python3";
+    const scriptPath = path.join(projectRoot, "launchops.py");
+
+    if (!fs.existsSync(scriptPath)) {
+      send("error", `[LaunchOps] launchops.py not found at ${scriptPath}`);
+      send("done", "[LaunchOps] Process exited with code 1");
+      res.end();
+      return;
+    }
+
+    const child = spawn(pythonBin, [scriptPath, ...args], {
+      cwd: projectRoot,
+      env: { ...process.env },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    child.stdout.on("data", (chunk: Buffer) => {
+      chunk.toString().split("\n").forEach((line) => {
+        if (line.trim()) send("line", line);
+      });
+    });
+
+    child.stderr.on("data", (chunk: Buffer) => {
+      chunk.toString().split("\n").forEach((line) => {
+        if (line.trim()) send("line", `[stderr] ${line}`);
+      });
+    });
+
+    child.on("close", (code) => {
+      send("done", `[LaunchOps] Process exited with code ${code ?? 0}`);
+      res.end();
+    });
+
+    child.on("error", (err) => {
+      send("error", `[LaunchOps] Failed to start process: ${err.message}`);
+      send("done", "[LaunchOps] Process exited with code 1");
+      res.end();
+    });
+
+    // Clean up if client disconnects
+    req.on("close", () => {
+      child.kill("SIGTERM");
+    });
+  });
+  // ── End Pipeline Run Monitor ─────────────────────────────────────────────────
   // tRPC API
   app.use(
     "/api/trpc",

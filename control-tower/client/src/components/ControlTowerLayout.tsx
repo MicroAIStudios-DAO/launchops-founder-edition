@@ -23,6 +23,7 @@ const NAV_ITEMS = [
   { label: "Exports", path: "/exports", icon: Download },
   { label: "Audit Log", path: "/audit", icon: ScrollText },
   { label: "Agent Fleet", path: "/agents", icon: Bot },
+  { label: "Pipeline Monitor", path: "/pipeline", icon: Activity },
 ];
 
 const SERVICE_LINKS = [
