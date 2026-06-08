@@ -27,6 +27,7 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { notifyOwner } from "./_core/notification";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
+import { setupRouter } from "./routers/setup";
 
 // ─── Alert state (DB-persisted, survives restarts) ───────────────────────────
 // Reads last known status and last alert time from the alert_state table.
@@ -703,6 +704,7 @@ const vaultRouter = router({
 
 export const appRouter = router({
   system: systemRouter,
+  setup: setupRouter,
   agents: agentsRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),

@@ -1,14 +1,19 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import {
+  AlertCircle,
   ArrowRight,
   Bot,
   Check,
   ChevronRight,
   Cpu,
+  Database,
   Globe,
   Key,
   Layers,
+  Loader2,
+  Lock,
+  Mail,
   Rocket,
   Shield,
   Sparkles,
@@ -40,6 +45,13 @@ const STEPS = [
     subtitle: "6 services deployed and ready for configuration",
     icon: Layers,
     color: "var(--neon-purple)",
+  },
+  {
+    id: "configure",
+    title: "Configure Services",
+    subtitle: "One click — Atlas configures all 6 services automatically",
+    icon: Database,
+    color: "var(--neon-green)",
   },
   {
     id: "kong",
@@ -77,6 +89,11 @@ const ATLAS_MESSAGES: Record<string, string[]> = {
     "KONG stands for Keep ON Guard. It's a two-agent team: CredentialForge creates all your usernames and passwords, KeyKeeper handles every email verification and OTP automatically.",
     "You never touch a signup form. KONG navigates to each service, fills in the forms, retrieves the verification codes from a temporary inbox, and stores everything encrypted in your vault.",
     "At the end, all credentials are delivered to your email. The temp inbox is discarded. You retain full control.",
+  ],
+  configure: [
+    "Now I configure each service automatically. One master password — I'll use it to set up admin accounts for WordPress, Matomo, SuiteCRM, and Mautic.",
+    "Click 'Configure All' and I'll run the installers inside each container. No browser wizards, no manual forms. You watch the log as it happens.",
+    "Vaultwarden is the only service you create manually — open it at port 8000 after this step to create your vault account.",
   ],
   launch: [
     "The pipeline runs 9 stages in sequence: intake → auth → formation → infrastructure → legal → payments → funding → coaching → growth.",
@@ -355,6 +372,180 @@ function StepInfrastructure({ onNext }: { onNext: () => void }) {
       <button className="btn-cyber" onClick={onNext} style={{ width: "100%", justifyContent: "center", gap: 8, padding: "14px 20px", fontSize: 13 }}>
         INFRASTRUCTURE CONFIRMED <ArrowRight size={14} />
       </button>
+    </div>
+  );
+}
+
+// ── Step: Configure Services ────────────────────────────────────────────────
+const CONFIG_SERVICES = [
+  { id: "MariaDB", label: "MariaDB", icon: Database, color: "var(--neon-blue)", desc: "Verify all databases" },
+  { id: "WordPress", label: "WordPress", icon: Globe, color: "var(--neon-cyan)", desc: "Install CMS & storefront" },
+  { id: "Matomo", label: "Matomo", icon: Sparkles, color: "var(--neon-green)", desc: "Configure analytics" },
+  { id: "SuiteCRM", label: "SuiteCRM", icon: User, color: "var(--neon-purple)", desc: "Set up CRM" },
+  { id: "Mautic", label: "Mautic", icon: Mail, color: "var(--neon-yellow)", desc: "Email automation" },
+  { id: "Vaultwarden", label: "Vaultwarden", icon: Lock, color: "var(--neon-red)", desc: "Password vault (manual)" },
+];
+
+function StepConfigure({ onNext, founderEmail }: { onNext: () => void; founderEmail: string }) {
+  const msgs = ATLAS_MESSAGES.configure;
+  const [masterPassword, setMasterPassword] = useState("");
+  const [email, setEmail] = useState(founderEmail || "");
+  const [siteUrl, setSiteUrl] = useState("http://137.220.36.18");
+  const [svcStates, setSvcStates] = useState<Record<string, { status: string; message: string; configured: boolean }>>(
+    Object.fromEntries(CONFIG_SERVICES.map(s => [s.id, { status: "idle", message: "", configured: false }]))
+  );
+  const [isRunning, setIsRunning] = useState(false);
+  const [setupLog, setSetupLog] = useState<string[]>([]);
+  const [allDone, setAllDone] = useState(false);
+  const logRef = useRef<HTMLDivElement>(null);
+
+  const runFullSetup = trpc.setup.runFullSetup.useMutation();
+  const getStatus = trpc.setup.getStatus.useQuery(undefined, { enabled: isRunning, refetchInterval: isRunning ? 2000 : false });
+
+  useEffect(() => {
+    if (getStatus.data && isRunning) {
+      setSvcStates(prev => {
+        const next = { ...prev };
+        for (const [k, v] of Object.entries(getStatus.data)) next[k] = v as typeof next[string];
+        return next;
+      });
+    }
+  }, [getStatus.data, isRunning]);
+
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [setupLog]);
+
+  useEffect(() => {
+    const required = ["MariaDB", "WordPress", "Matomo", "Mautic"];
+    if (required.every(id => svcStates[id]?.configured)) setAllDone(true);
+  }, [svcStates]);
+
+  function addLog(msg: string) {
+    setSetupLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+  }
+
+  async function runAll() {
+    if (!masterPassword || masterPassword.length < 8 || !email) return;
+    setIsRunning(true);
+    addLog("Starting full automated setup...");
+    try {
+      const result = await runFullSetup.mutateAsync({ masterPassword, email, founderName: "Founder", siteUrl });
+      for (const [svc, res] of Object.entries(result.results)) {
+        setSvcStates(prev => ({ ...prev, [svc]: { status: res.success ? "done" : "error", message: res.message, configured: res.success } }));
+        addLog(`${res.success ? "✓" : "✗"} ${svc}: ${res.message}`);
+      }
+      if (result.allSuccess) { addLog("✓ All services configured!"); setAllDone(true); }
+      else addLog("⚠ Some services need attention — retry individually.");
+    } catch (err) {
+      addLog(`✗ Error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsRunning(false);
+    }
+  }
+
+  const configuredCount = Object.values(svcStates).filter(s => s.configured).length;
+
+  return (
+    <div>
+      <div style={{ marginBottom: 20 }}>
+        {msgs.map((m, i) => <AtlasMessage key={i} text={m} delay={i * 1400} />)}
+      </div>
+
+      {/* Credentials */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 20 }}>
+        {[
+          { label: "EMAIL", value: email, set: setEmail, placeholder: "you@domain.com", type: "email" },
+          { label: "MASTER PASSWORD", value: masterPassword, set: setMasterPassword, placeholder: "Min 8 chars — used for all service admins", type: "password" },
+          { label: "SERVER URL", value: siteUrl, set: setSiteUrl, placeholder: "http://137.220.36.18", type: "text" },
+        ].map(({ label, value, set, placeholder, type }) => (
+          <div key={label}>
+            <div style={{ fontSize: 10, color: "var(--neon-cyan)", fontFamily: "'Share Tech Mono', monospace", letterSpacing: "0.12em", marginBottom: 5 }}>{label}</div>
+            <input type={type} value={value} onChange={e => set(e.target.value)} placeholder={placeholder}
+              style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(0,245,255,0.2)", borderRadius: 8, padding: "10px 14px", color: "var(--text-primary)", fontFamily: "'Share Tech Mono', monospace", fontSize: 12, outline: "none", boxSizing: "border-box" }} />
+          </div>
+        ))}
+      </div>
+
+      {/* Progress bar */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "var(--text-muted)", marginBottom: 6, fontFamily: "'Share Tech Mono', monospace" }}>
+          <span>SERVICES CONFIGURED</span>
+          <span style={{ color: "var(--neon-green)" }}>{configuredCount} / {CONFIG_SERVICES.length}</span>
+        </div>
+        <div style={{ height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${(configuredCount / CONFIG_SERVICES.length) * 100}%`, background: "linear-gradient(90deg, var(--neon-cyan), var(--neon-green))", borderRadius: 2, transition: "width 0.5s ease" }} />
+        </div>
+      </div>
+
+      {/* Configure All button */}
+      <button onClick={runAll} disabled={isRunning || !masterPassword || masterPassword.length < 8 || !email}
+        className="btn-cyber"
+        style={{ width: "100%", justifyContent: "center", gap: 8, padding: "14px 20px", fontSize: 13, marginBottom: 16,
+          borderColor: isRunning ? "rgba(255,255,255,0.1)" : "var(--neon-green)",
+          color: isRunning ? "var(--text-muted)" : "var(--neon-green)",
+          cursor: (isRunning || !masterPassword || masterPassword.length < 8 || !email) ? "not-allowed" : "pointer",
+        }}>
+        {isRunning ? <><Cpu size={14} style={{ animation: "spin 1s linear infinite" }} /> CONFIGURING ALL SERVICES...</> : <><Zap size={14} /> CONFIGURE ALL SERVICES AUTOMATICALLY</>}
+      </button>
+
+      {/* Service list */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+        {CONFIG_SERVICES.map(svc => {
+          const state = svcStates[svc.id];
+          const isDone = state.configured;
+          const isErr = state.status === "error";
+          const isRunningThis = state.status === "running";
+          const Icon = svc.icon;
+          return (
+            <div key={svc.id} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px",
+              background: isDone ? "rgba(0,255,136,0.04)" : isErr ? "rgba(255,50,50,0.04)" : "rgba(255,255,255,0.02)",
+              border: `1px solid ${isDone ? "rgba(0,255,136,0.2)" : isErr ? "rgba(255,50,50,0.2)" : `${svc.color}20`}`,
+              borderRadius: 8 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 8, background: `${svc.color}12`, border: `1px solid ${svc.color}25`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {isDone ? <Check size={14} color="var(--neon-green)" /> : isRunningThis ? <Loader2 size={14} color={svc.color} style={{ animation: "spin 1s linear infinite" }} /> : <Icon size={14} color={svc.color} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-primary)", fontFamily: "'Share Tech Mono', monospace" }}>{svc.label}</div>
+                <div style={{ fontSize: 10, color: isDone ? "var(--neon-green)" : isErr ? "#ff5555" : "var(--text-muted)", fontFamily: "'Share Tech Mono', monospace", marginTop: 2 }}>
+                  {state.message || svc.desc}
+                </div>
+              </div>
+              <span style={{ fontSize: 9, letterSpacing: "0.1em", color: isDone ? "var(--neon-green)" : isErr ? "#ff5555" : isRunningThis ? svc.color : "var(--text-muted)", fontFamily: "'Share Tech Mono', monospace" }}>
+                {isDone ? "READY" : isErr ? "ERROR" : isRunningThis ? "RUNNING" : "PENDING"}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Log terminal */}
+      {setupLog.length > 0 && (
+        <div style={{ background: "rgba(0,0,0,0.4)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: 12, marginBottom: 16 }}>
+          <div style={{ fontSize: 9, color: "var(--neon-cyan)", letterSpacing: "0.1em", fontFamily: "'Share Tech Mono', monospace", marginBottom: 6, display: "flex", alignItems: "center", gap: 4 }}>
+            <Terminal size={9} /> SETUP LOG
+          </div>
+          <div ref={logRef} style={{ maxHeight: 120, overflowY: "auto", fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: "rgba(255,255,255,0.5)", lineHeight: 1.8 }}>
+            {setupLog.map((line, i) => (
+              <div key={i} style={{ color: line.includes("✓") ? "var(--neon-green)" : line.includes("✗") ? "#ff5555" : line.includes("⚠") ? "var(--neon-yellow)" : "rgba(255,255,255,0.5)" }}>{line}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 10 }}>
+        <button onClick={onNext} disabled={!allDone && configuredCount < 2}
+          className="btn-cyber"
+          style={{ flex: 1, justifyContent: "center", gap: 8, padding: "14px 20px", fontSize: 13,
+            opacity: (!allDone && configuredCount < 2) ? 0.4 : 1,
+            cursor: (!allDone && configuredCount < 2) ? "not-allowed" : "pointer",
+          }}>
+          {allDone ? <>STACK CONFIGURED <ArrowRight size={14} /></> : <>CONTINUE ({configuredCount}/{CONFIG_SERVICES.length}) <ArrowRight size={14} /></>}
+        </button>
+        <button onClick={onNext} style={{ padding: "14px 20px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "var(--text-muted)", fontFamily: "'Share Tech Mono', monospace", fontSize: 12, cursor: "pointer" }}>
+          SKIP
+        </button>
+      </div>
     </div>
   );
 }
@@ -739,12 +930,13 @@ export default function Onboarding() {
             />
           )}
           {step === 2 && <StepInfrastructure onNext={() => setStep(3)} />}
-          {step === 3 && <StepKong onNext={() => setStep(4)} />}
-          {step === 4 && <StepLaunch profile={profile} onFinish={handleFinish} />}
+          {step === 3 && <StepConfigure onNext={() => setStep(4)} founderEmail={profile.delivery_email || ""} />}
+          {step === 4 && <StepKong onNext={() => setStep(5)} />}
+          {step === 5 && <StepLaunch profile={profile} onFinish={handleFinish} />}
         </div>
 
         {/* Skip link */}
-        {step > 0 && step < 4 && (
+        {step > 0 && step < 5 && (
           <div style={{ textAlign: "center", marginTop: 16 }}>
             <button
               onClick={() => setStep((s) => s + 1)}
