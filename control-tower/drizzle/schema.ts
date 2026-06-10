@@ -119,3 +119,38 @@ export const vaultDeliveries = mysqlTable("vault_deliveries", {
 });
 export type VaultDelivery = typeof vaultDeliveries.$inferSelect;
 export type InsertVaultDelivery = typeof vaultDeliveries.$inferInsert;
+
+// ─── Founder profile (set during onboarding, used by Atlas) ──────────────────
+export const founderProfile = mysqlTable("founder_profile", {
+  id: int("id").autoincrement().primaryKey(),
+  businessName: varchar("business_name", { length: 256 }),
+  industry: varchar("industry", { length: 256 }),
+  targetMarket: varchar("target_market", { length: 512 }),
+  deliveryEmail: varchar("delivery_email", { length: 320 }),
+  monthlyRevenueGoal: varchar("monthly_revenue_goal", { length: 128 }),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type FounderProfile = typeof founderProfile.$inferSelect;
+
+// ─── Stripe: customer + subscription tracking ─────────────────────────────────
+export const stripeCustomers = mysqlTable("stripe_customers", {
+  id: int("id").autoincrement().primaryKey(),
+  email: varchar("email", { length: 320 }).notNull(),
+  stripeCustomerId: varchar("stripe_customer_id", { length: 64 }).notNull().unique(),
+  stripeSubscriptionId: varchar("stripe_subscription_id", { length: 64 }),
+  subscriptionStatus: varchar("subscription_status", { length: 32 }), // active | canceled | past_due | trialing
+  currentPeriodEnd: timestamp("current_period_end"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type StripeCustomer = typeof stripeCustomers.$inferSelect;
+export type InsertStripeCustomer = typeof stripeCustomers.$inferInsert;
+
+// Idempotency guard — prevents double-processing webhook events
+export const stripeEvents = mysqlTable("stripe_events", {
+  id: int("id").autoincrement().primaryKey(),
+  stripeEventId: varchar("stripe_event_id", { length: 64 }).notNull().unique(),
+  eventType: varchar("event_type", { length: 64 }).notNull(),
+  processedAt: timestamp("processed_at").defaultNow().notNull(),
+});
+export type StripeEvent = typeof stripeEvents.$inferSelect;

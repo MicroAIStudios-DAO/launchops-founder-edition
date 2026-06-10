@@ -14,6 +14,7 @@ import AuditLog from "./pages/AuditLog";
 import Agents from "./pages/Agents";
 import Onboarding from "./pages/Onboarding";
 import PipelineMonitor from "./pages/PipelineMonitor";
+import Payments from "./pages/Payments";
 import NotFound from "./pages/NotFound";
 
 function Router() {
@@ -29,6 +30,7 @@ function Router() {
         <Route path="/audit" component={AuditLog} />
         <Route path="/agents" component={Agents} />
         <Route path="/pipeline" component={PipelineMonitor} />
+        <Route path="/payments" component={Payments} />
         <Route component={NotFound} />
       </Switch>
     </ControlTowerLayout>

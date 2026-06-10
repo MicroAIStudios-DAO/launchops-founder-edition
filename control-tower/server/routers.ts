@@ -22,12 +22,16 @@ import {
   markVaultDeliveryDownloaded,
   updateVaultDeliveryStatus,
   upsertAlertState,
+  getDb,
 } from "./db";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { notifyOwner } from "./_core/notification";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router } from "./_core/trpc";
 import { setupRouter } from "./routers/setup";
+import { stripeRouter } from "./routers/stripe";
+import { founderProfile } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
 
 // ─── Alert state (DB-persisted, survives restarts) ───────────────────────────
 // Reads last known status and last alert time from the alert_state table.
@@ -515,9 +519,27 @@ const agentsRouter = router({
         ),
       })
     )
-    .mutation(async ({ input }) => {
-      const SYSTEM = `You are Atlas, the AI orchestrator for LaunchOps Founder Edition — a no-guardrails AI-powered business operating system.
+        .mutation(async ({ input }) => {
+      // Fetch founder profile to personalize Atlas context
+      let profileContext = "";
+      try {
+        const db = await getDb();
+        if (db) {
+          const rows = await db.select().from(founderProfile).limit(1);
+          if (rows.length > 0) {
+            const p = rows[0];
+            profileContext = `\n\nFOUNDER CONTEXT (use this to personalize every response):
+- Business: ${p.businessName || "not set"}
+- Industry: ${p.industry || "not set"}
+- Target Market: ${p.targetMarket || "not set"}
+- Monthly Revenue Goal: ${p.monthlyRevenueGoal || "not set"}
+- Contact Email: ${p.deliveryEmail || "not set"}
+Always reference the founder's specific business context when giving advice. Address them by their business name, not generically.`;
+          }
+        }
+      } catch { /* profile fetch is non-blocking */ }
 
+      const SYSTEM = `You are Atlas, the AI orchestrator for LaunchOps Founder Edition — a no-guardrails AI-powered business operating system.
 You coordinate 23 specialized agents in 6 teams:
 - KONG (A.P.E.SSH.I.T.T.): CredentialForge, KeyKeeper — automated account creation & 2FA handling
 - Core Pipeline: FounderOS, BusinessBuilder, DynExecutiv, MetricsAgent, ContentEngine
@@ -538,7 +560,7 @@ Be direct, specific, and action-oriented. Speak like a brilliant co-founder who 
       try {
         const response = await invokeLLM({
           messages: [
-            { role: "system", content: SYSTEM },
+            { role: "system", content: SYSTEM + profileContext },
             ...input.messages,
           ],
         });
@@ -705,6 +727,7 @@ const vaultRouter = router({
 export const appRouter = router({
   system: systemRouter,
   setup: setupRouter,
+  stripe: stripeRouter,
   agents: agentsRouter,
   auth: router({
     me: publicProcedure.query((opts) => opts.ctx.user),
@@ -720,6 +743,33 @@ export const appRouter = router({
   audit: auditRouter,
   exports: exportsRouter,
   vault: vaultRouter,
+  founderProfile: router({
+    get: publicProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) return null;
+      const rows = await db.select().from(founderProfile).limit(1);
+      return rows[0] ?? null;
+    }),
+    save: publicProcedure
+      .input(z.object({
+        businessName: z.string().optional(),
+        industry: z.string().optional(),
+        targetMarket: z.string().optional(),
+        deliveryEmail: z.string().optional(),
+        monthlyRevenueGoal: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const db = await getDb();
+        if (!db) return { success: false };
+        const rows = await db.select().from(founderProfile).limit(1);
+        if (rows.length > 0) {
+          await db.update(founderProfile).set(input).where(eq(founderProfile.id, rows[0].id));
+        } else {
+          await db.insert(founderProfile).values(input);
+        }
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

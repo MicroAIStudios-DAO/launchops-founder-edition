@@ -34,6 +34,84 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+
+  // ── Stripe webhook — MUST be registered before express.json() ───────────────
+  // Stripe requires the raw body buffer for signature verification.
+  app.post("/api/stripe/webhook", express.raw({ type: "application/json" }), async (req, res) => {
+    const sig = req.headers["stripe-signature"] as string;
+    const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+    // If no secret configured, just ack (dev mode)
+    if (!webhookSecret) {
+      res.json({ received: true, note: "no webhook secret configured" });
+      return;
+    }
+
+    let event: import("stripe").Stripe.Event;
+    try {
+      const Stripe = (await import("stripe")).default;
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: "2026-05-27.dahlia" });
+      event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+    } catch (err: any) {
+      console.error("[Stripe Webhook] Signature verification failed:", err.message);
+      res.status(400).json({ error: `Webhook Error: ${err.message}` });
+      return;
+    }
+
+    // Idempotency: skip already-processed events
+    try {
+      const { getDb } = await import("../db");
+      const { stripeEvents, stripeCustomers } = await import("../../drizzle/schema");
+      const { eq } = await import("drizzle-orm");
+      const db = await getDb();
+      if (db) {
+        const existing = await db.select().from(stripeEvents).where(eq(stripeEvents.stripeEventId, event.id)).limit(1);
+        if (existing.length > 0) {
+          res.json({ received: true, note: "already processed" });
+          return;
+        }
+        // Record event
+        await db.insert(stripeEvents).values({ stripeEventId: event.id, eventType: event.type });
+
+        // Handle specific events
+        if (event.type === "checkout.session.completed") {
+          const session = event.data.object as import("stripe").Stripe.Checkout.Session;
+          if (session.customer && session.customer_email) {
+            await db.insert(stripeCustomers).values({
+              email: session.customer_email,
+              stripeCustomerId: session.customer as string,
+              stripeSubscriptionId: session.subscription as string | null,
+              subscriptionStatus: session.subscription ? "active" : null,
+            }).onDuplicateKeyUpdate({
+              set: {
+                stripeSubscriptionId: session.subscription as string | null,
+                subscriptionStatus: session.subscription ? "active" : null,
+              },
+            });
+          }
+        } else if (event.type === "customer.subscription.updated") {
+          const sub = event.data.object as import("stripe").Stripe.Subscription;
+          await db.update(stripeCustomers)
+            .set({
+              subscriptionStatus: sub.status,
+              currentPeriodEnd: new Date((sub as any).current_period_end * 1000),
+            })
+            .where(eq(stripeCustomers.stripeSubscriptionId, sub.id));
+        } else if (event.type === "customer.subscription.deleted") {
+          const sub = event.data.object as import("stripe").Stripe.Subscription;
+          await db.update(stripeCustomers)
+            .set({ subscriptionStatus: "canceled" })
+            .where(eq(stripeCustomers.stripeSubscriptionId, sub.id));
+        }
+      }
+    } catch (dbErr: any) {
+      console.error("[Stripe Webhook] DB error:", dbErr.message);
+    }
+
+    res.json({ received: true });
+  });
+  // ── End Stripe webhook ────────────────────────────────────────────────────────
+
   // Configure body parser with larger size limit for file uploads
   app.use(express.json({ limit: "50mb" }));
   app.use(express.urlencoded({ limit: "50mb", extended: true }));

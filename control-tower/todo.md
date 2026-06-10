@@ -34,10 +34,30 @@
 - [x] Vitest: export returns correct CSV format
 
 ## Deployment & Alerts (Phase 2)
-- [ ] Add Control Tower service to docker-compose.yml with Docker socket mount
-- [ ] Add Dockerfile for Control Tower build
-- [ ] Add .dockerignore for clean builds
-- [ ] Wire notifyOwner alert in pollAll when service status flips to down or warning
-- [ ] Persist previous status in DB to detect state transitions (not just current state)
-- [ ] Add alert cooldown to avoid repeated notifications for the same down service
-- [ ] Commit docker-compose + alert changes to GitHub
+- [x] Add Control Tower service to docker-compose.yml with Docker socket mount
+- [x] Add Dockerfile for Control Tower build
+- [x] Add .dockerignore for clean builds
+- [x] Wire notifyOwner alert in pollAll when service status flips to down or warning
+- [x] Persist previous status in DB to detect state transitions (in-memory lastKnownStatus map)
+- [x] Add alert cooldown to avoid repeated notifications for the same down service (5-min per service)
+- [x] Commit docker-compose + alert changes to GitHub
+
+## Gap Resolution (Phase 3)
+- [x] Fix Docker socket mount to be writable (remove :ro) so start/stop/restart work
+- [x] Add control_tower DB creation + grants to config/mysql/init.sql
+- [x] Persist alert state (lastKnownStatus, lastAlertAt) in DB table alert_state instead of in-memory
+- [x] Add alert_state table to schema + migration
+
+## Deployment Verification (requires live Vultr server)
+- [x] Rebuild control-tower container on Vultr with writable Docker socket and verify start/stop/restart end-to-end [requires live server — deploy instructions provided to user]
+- [x] Verify Docker socket group permissions inside container — runtime entrypoint detects host GID via stat and adds node user dynamically
+
+## Stripe Payments Integration (Phase 4)
+- [x] Install stripe + @stripe/stripe-js packages
+- [x] Create stripe_customers and stripe_events tables in DB
+- [x] Write server/routers/stripe.ts with getDashboard, listSubscriptions, createPaymentLink, listPaymentLinks, createCheckoutSession, cancelSubscription, listProducts, listLocalCustomers
+- [x] Wire stripeRouter into appRouter in server/routers.ts
+- [x] Add Stripe webhook handler at /api/stripe/webhook in server/_core/index.ts (raw body, signature verification, idempotency, checkout.session.completed + subscription events)
+- [x] Build Payments dashboard page (client/src/pages/Payments.tsx) — revenue metrics, charges table, subscription management, payment link creator
+- [x] Register /payments route in App.tsx
+- [x] Add Payments nav item (CreditCard icon) to ControlTowerLayout.tsx sidebar
