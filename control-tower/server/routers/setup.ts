@@ -9,6 +9,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import { z } from "zod";
 import { publicProcedure, router } from "../_core/trpc";
+import * as proofguard from "../proofguard-client";
 
 const execAsync = promisify(exec);
 
@@ -494,6 +495,20 @@ $parameters = array(
         results.Vaultwarden = { success: false, message: String(e).slice(0, 200) };
       }
 
-      return { results, allSuccess: Object.values(results).every(r => r.success) };
+      const allSuccess = Object.values(results).every(r => r.success);
+
+      // Submit attestation to ProofGuard for infrastructure setup (non-blocking)
+      const configuredServices = Object.entries(results)
+        .filter(([, r]) => r.success)
+        .map(([name]) => name);
+      proofguard.submitAttestation({
+        agent_id: "security_agent",
+        action: "infrastructure_setup",
+        action_json: { services: configuredServices, allSuccess, email: input.email },
+        risk_tier: "high",
+        imda_pillar: "Technical Robustness",
+      }).catch(() => {});
+
+      return { results, allSuccess };
     }),
 });

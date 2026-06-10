@@ -7,4 +7,7 @@ export const ENV = {
   isProduction: process.env.NODE_ENV === "production",
   forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
+  // ProofGuard AI — Proof-of-Agent attestation platform
+  proofguardApiUrl: process.env.PROOFGUARD_API_URL ?? "",
+  proofguardApiKey: process.env.PROOFGUARD_API_KEY ?? "",
 };

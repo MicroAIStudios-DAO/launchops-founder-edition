@@ -1,0 +1,1 @@
+ALTER TABLE `founder_profile` ADD `business_type` varchar(64);

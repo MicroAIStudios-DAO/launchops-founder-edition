@@ -32,6 +32,7 @@ import { setupRouter } from "./routers/setup";
 import { stripeRouter } from "./routers/stripe";
 import { founderProfile } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
+import * as proofguard from "./proofguard-client";
 
 // ─── Alert state (DB-persisted, survives restarts) ───────────────────────────
 // Reads last known status and last alert time from the alert_state table.
@@ -487,16 +488,36 @@ const agentsRouter = router({
         // Parse JSON output — launchops.py prints a JSON line at the end
         const lines = stdout.trim().split("\n");
         const jsonLine = lines.reverse().find((l) => l.trim().startsWith("{"));
+        let result = { success: false, results: {} as Record<string, unknown>, raw: stdout.slice(-1000) };
         if (jsonLine) {
           const parsed = JSON.parse(jsonLine);
-          return {
+          result = {
             success:  parsed.success ?? false,
             results:  parsed.results ?? {},
             raw:      stdout.slice(-1000),
           };
         }
-        return { success: false, results: {}, raw: stdout.slice(-1000) };
+
+        // Submit attestation to ProofGuard (non-blocking)
+        proofguard.submitAttestation({
+          agent_id: "credential_forge",
+          action: "account_creation_all",
+          action_json: { services: input.services || [], success: result.success },
+          risk_tier: "high",
+          imda_pillar: "Internal Governance",
+        }).catch(() => {}); // fire-and-forget
+
+        return result;
       } catch (err: any) {
+        // Submit failed attestation to ProofGuard (non-blocking)
+        proofguard.submitAttestation({
+          agent_id: "credential_forge",
+          action: "account_creation_all",
+          action_json: { services: input.services || [], error: err.message },
+          risk_tier: "critical",
+          imda_pillar: "Internal Governance",
+        }).catch(() => {});
+
         return {
           success: false,
           results: {},
@@ -531,10 +552,11 @@ const agentsRouter = router({
             profileContext = `\n\nFOUNDER CONTEXT (use this to personalize every response):
 - Business: ${p.businessName || "not set"}
 - Industry: ${p.industry || "not set"}
+- Business Type: ${p.businessType || "not set"}
 - Target Market: ${p.targetMarket || "not set"}
 - Monthly Revenue Goal: ${p.monthlyRevenueGoal || "not set"}
 - Contact Email: ${p.deliveryEmail || "not set"}
-Always reference the founder's specific business context when giving advice. Address them by their business name, not generically.`;
+Always reference the founder's specific business context when giving advice. Address them by their business name, not generically. Tailor recommendations to their business type (${p.businessType || "general"}).`;
           }
         }
       } catch { /* profile fetch is non-blocking */ }
@@ -569,6 +591,75 @@ Be direct, specific, and action-oriented. Speak like a brilliant co-founder who 
       } catch {
         return { reply: "Atlas is temporarily unavailable. Use the Controls panel or Vultr terminal to run agents directly." };
       }
+    }),
+
+  /**
+   * ProofGuard: submit an attestation for a pipeline agent action.
+   */
+  submitAttestation: publicProcedure
+    .input(z.object({
+      agentId: z.string(),
+      action: z.string(),
+      actionJson: z.record(z.string(), z.unknown()).optional(),
+      riskTier: z.enum(["low", "medium", "high", "critical"]).optional(),
+      imdaPillar: z.enum(["Internal Governance", "Human Accountability", "Technical Robustness", "User Enablement"]).optional(),
+      modelHash: z.string().optional(),
+      policyHash: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const result = await proofguard.submitAttestation({
+        agent_id: input.agentId,
+        action: input.action,
+        action_json: input.actionJson,
+        risk_tier: input.riskTier,
+        imda_pillar: input.imdaPillar,
+        model_hash: input.modelHash,
+        policy_hash: input.policyHash,
+      });
+      return result;
+    }),
+
+  /**
+   * ProofGuard: verify an attestation by ID.
+   */
+  verifyAttestation: publicProcedure
+    .input(z.object({ attestationId: z.string() }))
+    .query(async ({ input }) => {
+      return proofguard.verifyAttestation(input.attestationId);
+    }),
+
+  /**
+   * ProofGuard: list recent attestations.
+   */
+  listAttestations: publicProcedure
+    .input(z.object({
+      limit: z.number().optional(),
+      offset: z.number().optional(),
+      flagged: z.boolean().optional(),
+    }).optional())
+    .query(async ({ input }) => {
+      return proofguard.listAttestations(input ?? undefined);
+    }),
+
+  /**
+   * ProofGuard: health check — is the service configured and reachable?
+   */
+  proofguardHealth: publicProcedure.query(async () => {
+    return proofguard.healthCheck();
+  }),
+
+  /**
+   * ProofGuard: register a new agent.
+   */
+  registerAgent: publicProcedure
+    .input(z.object({
+      name: z.string(),
+      description: z.string().optional(),
+      runtime: z.string().optional(),
+      modelProvider: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      return proofguard.registerAgent(input);
     }),
 
   getStatus: publicProcedure.query(async () => {
@@ -757,6 +848,7 @@ export const appRouter = router({
         targetMarket: z.string().optional(),
         deliveryEmail: z.string().optional(),
         monthlyRevenueGoal: z.string().optional(),
+        businessType: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         const db = await getDb();

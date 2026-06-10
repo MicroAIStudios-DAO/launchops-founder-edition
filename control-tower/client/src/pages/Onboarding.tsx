@@ -505,6 +505,8 @@ export default function Onboarding() {
   const [profile, setProfile] = useState<Record<string, string>>({});
   const [, navigate] = useLocation();
 
+  const saveProfile = trpc.founderProfile.save.useMutation();
+
   const handleFinish = () => {
     localStorage.setItem("launchops_onboarding_complete", "1");
     navigate("/");
@@ -543,7 +545,7 @@ export default function Onboarding() {
         {/* Card */}
         <div style={{ background: B.card, border: `1px solid ${B.border}`, borderRadius: 16, padding: "28px", boxShadow: "0 24px 60px rgba(0,0,0,0.4)" }}>
           {step === 0 && <StepWelcome onNext={() => setStep(1)} />}
-          {step === 1 && <StepFounder onNext={(data) => { setProfile(data); setStep(2); }} />}
+          {step === 1 && <StepFounder onNext={(data) => { setProfile(data); saveProfile.mutate({ businessName: data.business_name, industry: data.industry, targetMarket: data.target_market, deliveryEmail: data.delivery_email, monthlyRevenueGoal: data.monthly_revenue_goal, businessType: data.business_type }); setStep(2); }} />}
           {step === 2 && <StepInfrastructure onNext={() => setStep(3)} />}
           {step === 3 && <StepConfigure onNext={() => setStep(4)} founderEmail={profile.delivery_email || ""} />}
           {step === 4 && <StepKong onNext={() => setStep(5)} />}

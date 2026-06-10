@@ -128,6 +128,7 @@ export const founderProfile = mysqlTable("founder_profile", {
   targetMarket: varchar("target_market", { length: 512 }),
   deliveryEmail: varchar("delivery_email", { length: 320 }),
   monthlyRevenueGoal: varchar("monthly_revenue_goal", { length: 128 }),
+  businessType: varchar("business_type", { length: 64 }),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
 export type FounderProfile = typeof founderProfile.$inferSelect;
