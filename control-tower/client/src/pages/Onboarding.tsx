@@ -148,7 +148,7 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
   return (
     <div>
       <div style={{ marginBottom: 24 }}>{ATLAS.welcome.map((m, i) => <AtlasMsg key={i} text={m} delay={i * 1400} />)}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 28 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 20 }}>
         {[{ label: "23 Agents", desc: "Coordinated fleet", color: B.cyan }, { label: "9 Stages", desc: "Full pipeline", color: B.purple }, { label: "6 Services", desc: "Self-hosted stack", color: B.green }].map(({ label, desc, color }) => (
           <div key={label} style={{ padding: "16px 14px", borderRadius: 10, textAlign: "center", background: `${color}08`, border: `1px solid ${color}25` }}>
             <div style={{ fontSize: 18, fontWeight: 700, color, fontFamily: B.font, marginBottom: 4 }}>{label}</div>
@@ -156,14 +156,57 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
           </div>
         ))}
       </div>
-      <PBtn onClick={onNext} color={B.cyan}>BEGIN SETUP <ArrowRight size={15} /></PBtn>
+
+      {/* ProofGuard Active card */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 16px", marginBottom: 20, borderRadius: 10, background: "oklch(72% .18 145 / 0.05)", border: "1px solid oklch(72% .18 145 / 0.2)" }}>
+        <div style={{ width: 34, height: 34, borderRadius: 8, background: "oklch(72% .18 145 / 0.12)", border: "1px solid oklch(72% .18 145 / 0.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Shield size={16} color={B.green} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: B.green, fontFamily: B.font, letterSpacing: "0.04em" }}>ProofGuard Active</div>
+          <div style={{ fontSize: 10, color: B.tm, fontFamily: B.font, marginTop: 2 }}>Every action is attested and immutably logged</div>
+        </div>
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: B.green, boxShadow: `0 0 10px ${B.green}`, animation: "blink 2s infinite", flexShrink: 0 }} />
+      </div>
+
+      <PBtn onClick={onNext} color={B.cyan}>LAUNCH MY BUSINESS STACK <ArrowRight size={15} /></PBtn>
+
+      {/* Step preview */}
+      <div style={{ marginTop: 18, padding: "14px 16px", borderRadius: 10, background: "oklch(75% .15 195 / 0.03)", border: "1px solid oklch(75% .15 195 / 0.1)" }}>
+        <div style={{ fontSize: 9, color: B.cyan, letterSpacing: "0.14em", fontFamily: B.font, fontWeight: 700, marginBottom: 10 }}>WHAT'S COMING</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {[
+            { num: "1", label: "Tell Atlas about your business", color: B.blue },
+            { num: "2", label: "Review your running infrastructure", color: B.purple },
+            { num: "3", label: "Auto-configure all services", color: B.green },
+            { num: "4", label: "Activate KONG security team", color: B.yellow },
+            { num: "5", label: "Launch the full pipeline", color: B.cyan },
+          ].map(({ num, label, color }) => (
+            <div key={num} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ width: 18, height: 18, borderRadius: 5, background: `${color}12`, border: `1px solid ${color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, fontWeight: 700, color, fontFamily: B.font, flexShrink: 0 }}>{num}</span>
+              <span style={{ fontSize: 11, color: B.ts, fontFamily: B.font, fontWeight: 500 }}>{label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
+// Business type options
+const BUSINESS_TYPES = [
+  "Consultant",
+  "Course creator",
+  "Local service business",
+  "Real estate",
+  "Photographer/creative",
+  "Agency",
+  "Custom",
+];
+
 // Step: Founder Profile
 function StepFounder({ onNext }: { onNext: (data: Record<string, string>) => void }) {
-  const [form, setForm] = useState({ business_name: "", industry: "", target_market: "", delivery_email: "", monthly_revenue_goal: "" });
+  const [form, setForm] = useState({ business_name: "", business_type: "", custom_business_type: "", industry: "", target_market: "", delivery_email: "", monthly_revenue_goal: "" });
   const fields = [
     { key: "business_name", label: "BUSINESS NAME", placeholder: "e.g. Apex Digital Solutions" },
     { key: "industry", label: "INDUSTRY / NICHE", placeholder: "e.g. SaaS, e-commerce, consulting" },
@@ -171,14 +214,42 @@ function StepFounder({ onNext }: { onNext: (data: Record<string, string>) => voi
     { key: "delivery_email", label: "YOUR EMAIL", placeholder: "you@domain.com" },
     { key: "monthly_revenue_goal", label: "MONTHLY REVENUE GOAL", placeholder: "e.g. $10,000" },
   ];
-  const ok = form.business_name && form.delivery_email;
+  const ok = form.business_name && form.delivery_email && form.business_type;
   return (
     <div>
       <div style={{ marginBottom: 20 }}>{ATLAS.founder.map((m, i) => <AtlasMsg key={i} text={m} delay={i * 1400} />)}</div>
       <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 24 }}>
-        {fields.map(f => <FInput key={f.key} label={f.label} value={form[f.key as keyof typeof form]} onChange={v => setForm(p => ({ ...p, [f.key]: v }))} placeholder={f.placeholder} type={f.key === "delivery_email" ? "email" : "text"} />)}
+        <FInput key="business_name" label="BUSINESS NAME" value={form.business_name} onChange={v => setForm(p => ({ ...p, business_name: v }))} placeholder="e.g. Apex Digital Solutions" />
+
+        {/* Business Type selector */}
+        <div>
+          <div style={{ fontSize: 10, color: B.cyan, letterSpacing: "0.12em", marginBottom: 8, fontFamily: B.font, fontWeight: 700 }}>BUSINESS TYPE</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+            {BUSINESS_TYPES.map(bt => {
+              const selected = form.business_type === bt;
+              return (
+                <button key={bt} type="button" onClick={() => setForm(p => ({ ...p, business_type: bt, custom_business_type: bt === "Custom" ? p.custom_business_type : "" }))}
+                  style={{ padding: "10px 12px", borderRadius: 8, border: `1px solid ${selected ? B.cyan : B.border}`, background: selected ? "oklch(75% .15 195 / 0.08)" : "transparent", color: selected ? B.cyan : B.ts, fontFamily: B.font, fontWeight: selected ? 600 : 500, fontSize: 12, cursor: "pointer", textAlign: "left", transition: "all 0.15s cubic-bezier(0.23, 1, 0.32, 1)", boxShadow: selected ? `0 0 12px oklch(75% .15 195 / 0.15)` : "none" }}>
+                  {bt}
+                </button>
+              );
+            })}
+          </div>
+          {form.business_type === "Custom" && (
+            <div style={{ marginTop: 8 }}>
+              <FInput label="DESCRIBE YOUR BUSINESS TYPE" value={form.custom_business_type} onChange={v => setForm(p => ({ ...p, custom_business_type: v }))} placeholder="e.g. Nonprofit, SaaS startup, Franchise" />
+            </div>
+          )}
+        </div>
+
+        {fields.slice(1).map(f => <FInput key={f.key} label={f.label} value={form[f.key as keyof typeof form]} onChange={v => setForm(p => ({ ...p, [f.key]: v }))} placeholder={f.placeholder} type={f.key === "delivery_email" ? "email" : "text"} />)}
       </div>
-      <PBtn onClick={() => onNext(form)} disabled={!ok} color={B.blue}>SAVE PROFILE <ArrowRight size={15} /></PBtn>
+      <PBtn onClick={() => {
+        const data = { ...form };
+        if (data.business_type === "Custom" && data.custom_business_type) data.business_type = data.custom_business_type;
+        delete (data as any).custom_business_type;
+        onNext(data);
+      }} disabled={!ok} color={B.blue}>SAVE PROFILE <ArrowRight size={15} /></PBtn>
     </div>
   );
 }

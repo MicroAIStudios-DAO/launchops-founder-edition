@@ -61,3 +61,11 @@
 - [x] Build Payments dashboard page (client/src/pages/Payments.tsx) — revenue metrics, charges table, subscription management, payment link creator
 - [x] Register /payments route in App.tsx
 - [x] Add Payments nav item (CreditCard icon) to ControlTowerLayout.tsx sidebar
+
+## UX & Brand Refinements (Phase 5)
+- [x] Rename "Audit Log" to "ProofGuard" in sidebar nav + page title
+- [x] Add ProofGuard Active card on Onboarding welcome screen (step 1)
+- [x] Change "Begin Setup" button to "Launch My Business Stack"
+- [x] Change "Setup Guide" sidebar label to "Launch Wizard"
+- [x] Add step preview under the launch button so users see what's coming
+- [x] Add "Business Type" selector in onboarding step 2 or 3 (Consultant, Course creator, Local service business, Real estate, Photographer/creative, Agency, Custom)

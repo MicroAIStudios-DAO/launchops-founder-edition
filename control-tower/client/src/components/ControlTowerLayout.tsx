@@ -18,13 +18,13 @@ import type { ReactNode } from "react";
 
 const NAV_ITEMS = [
   { label: "Overview",        path: "/",          icon: Gauge },
-  { label: "Setup Guide",     path: "/onboarding", icon: PlayCircle },
+  { label: "Launch Wizard",   path: "/onboarding", icon: PlayCircle },
   { label: "Agent Fleet",     path: "/agents",     icon: Bot },
   { label: "Pipeline Monitor",path: "/pipeline",   icon: Activity },
   { label: "Controls",        path: "/controls",   icon: Zap },
   { label: "Logs",            path: "/logs",       icon: Terminal },
   { label: "Stats",           path: "/stats",      icon: BarChart3 },
-  { label: "Audit Log",       path: "/audit",      icon: ScrollText },
+  { label: "ProofGuard",      path: "/audit",      icon: Shield },
   { label: "Exports",         path: "/exports",    icon: Download },
   { label: "Payments",        path: "/payments",   icon: CreditCard },
 ];

@@ -1,6 +1,6 @@
 import { trpc } from "@/lib/trpc";
 import { useState } from "react";
-import { RefreshCw, ScrollText } from "lucide-react";
+import { RefreshCw, Shield } from "lucide-react";
 
 const SERVICES = ["All", "WordPress", "SuiteCRM", "Mautic", "Matomo", "Vaultwarden", "MariaDB"];
 
@@ -49,10 +49,10 @@ export default function AuditLog() {
               margin: 0,
             }}
           >
-            AUDIT LOG
+            PROOFGUARD
           </h1>
           <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4, fontFamily: "'Share Tech Mono', monospace" }}>
-            ALL CONTROL ACTIONS · IMMUTABLE RECORD
+            ATTESTATION LEDGER · IMMUTABLE RECORD
           </p>
         </div>
         <button
@@ -161,7 +161,7 @@ export default function AuditLog() {
               fontSize: 13,
             }}
           >
-            <ScrollText size={32} style={{ margin: "0 auto 12px", opacity: 0.3 }} />
+            <Shield size={32} style={{ margin: "0 auto 12px", opacity: 0.3 }} />
             NO AUDIT EVENTS YET
             <div style={{ fontSize: 11, marginTop: 6, opacity: 0.6 }}>
               USE THE CONTROLS PAGE TO START/STOP/RESTART SERVICES
