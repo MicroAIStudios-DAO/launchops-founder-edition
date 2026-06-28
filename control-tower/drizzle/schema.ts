@@ -133,6 +133,63 @@ export const founderProfile = mysqlTable("founder_profile", {
 });
 export type FounderProfile = typeof founderProfile.$inferSelect;
 
+// ─── Business Builder OS — Build Spec + Interview + Generated Assets ────────────
+
+/**
+ * Stores the founder's answers to the 12-question interview (Prompt 0).
+ * One row per session — latest row is the active build spec source.
+ */
+export const businessInterviewAnswers = mysqlTable("business_interview_answers", {
+  id: int("id").autoincrement().primaryKey(),
+  // 12 interview question answers stored as JSON
+  answers: text("answers").notNull(), // JSON: { q1: string, q2: string, ... q12: string }
+  buildSpec: text("build_spec"),      // JSON: generated Build Spec from Prompt 0
+  status: mysqlEnum("status", ["in_progress", "complete"]).notNull().default("in_progress"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type BusinessInterviewAnswers = typeof businessInterviewAnswers.$inferSelect;
+export type InsertBusinessInterviewAnswers = typeof businessInterviewAnswers.$inferInsert;
+
+/**
+ * Stores the output of each of the 30 Business Builder prompts.
+ * One row per prompt per run — allows resuming and re-running individual prompts.
+ */
+export const generatedAssets = mysqlTable("generated_assets", {
+  id: int("id").autoincrement().primaryKey(),
+  runId: varchar("run_id", { length: 64 }).notNull(),         // groups all 30 prompts in one run
+  promptId: varchar("prompt_id", { length: 64 }).notNull(),   // e.g. "prompt_1_concepts"
+  promptTitle: varchar("prompt_title", { length: 256 }).notNull(),
+  category: varchar("category", { length: 64 }).notNull(),    // model | validation | copy | automation | etc.
+  content: text("content").notNull(),                         // LLM output (markdown)
+  status: mysqlEnum("status", ["pending", "running", "complete", "error"]).notNull().default("pending"),
+  deployedTo: varchar("deployed_to", { length: 128 }),        // e.g. "mautic" | "wordpress" | "suitecrm"
+  deployedAt: timestamp("deployed_at"),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type GeneratedAsset = typeof generatedAssets.$inferSelect;
+export type InsertGeneratedAsset = typeof generatedAssets.$inferInsert;
+
+/**
+ * Tracks Business Builder runs (one run = all 30 prompts executed together).
+ */
+export const businessBuilderRuns = mysqlTable("business_builder_runs", {
+  id: int("id").autoincrement().primaryKey(),
+  runId: varchar("run_id", { length: 64 }).notNull().unique(),
+  interviewId: int("interview_id"),                           // FK to businessInterviewAnswers
+  status: mysqlEnum("status", ["pending", "running", "complete", "error"]).notNull().default("pending"),
+  promptsTotal: int("prompts_total").notNull().default(30),
+  promptsComplete: int("prompts_complete").notNull().default(0),
+  currentPrompt: varchar("current_prompt", { length: 64 }),
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+export type BusinessBuilderRun = typeof businessBuilderRuns.$inferSelect;
+export type InsertBusinessBuilderRun = typeof businessBuilderRuns.$inferInsert;
+
 // ─── Stripe: customer + subscription tracking ─────────────────────────────────
 export const stripeCustomers = mysqlTable("stripe_customers", {
   id: int("id").autoincrement().primaryKey(),

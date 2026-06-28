@@ -3,6 +3,7 @@ import {
   Activity,
   BarChart3,
   Bot,
+  Brain,
   CreditCard,
   Download,
   ExternalLink,
@@ -19,6 +20,7 @@ import type { ReactNode } from "react";
 const NAV_ITEMS = [
   { label: "Overview",        path: "/",          icon: Gauge },
   { label: "Launch Wizard",   path: "/onboarding", icon: PlayCircle },
+  { label: "Business Builder", path: "/business-builder", icon: Brain },
   { label: "Agent Fleet",     path: "/agents",     icon: Bot },
   { label: "Pipeline Monitor",path: "/pipeline",   icon: Activity },
   { label: "Controls",        path: "/controls",   icon: Zap },

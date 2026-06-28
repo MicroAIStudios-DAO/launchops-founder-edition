@@ -30,6 +30,7 @@ const COMMANDS = [
   { id: "health",               label: "System Health Check",           group: "System",     danger: false },
   { id: "status",               label: "Full Stack Status",             group: "System",     danger: false },
   { id: "kong",                 label: "KONG — Full Account Creation",  group: "KONG",       danger: false },
+  { id: "stage:business_builder", label: "Stage 0: Business Builder OS", group: "Pipeline",   danger: false },
   { id: "stage:auth",           label: "Stage: Auth (KONG)",            group: "Pipeline",   danger: false },
   { id: "stage:formation",      label: "Stage: Formation",              group: "Pipeline",   danger: false },
   { id: "stage:infrastructure", label: "Stage: Infrastructure",         group: "Pipeline",   danger: false },

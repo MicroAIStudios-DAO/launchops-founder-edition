@@ -1,7 +1,7 @@
-import { trpc } from "@/lib/trpc";
 import { useState } from "react";
-import { Download, FileJson, FileText } from "lucide-react";
+import { Download, FileJson, FileText, Brain, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { trpc } from "@/lib/trpc";
 
 const SERVICES = ["All", "WordPress", "SuiteCRM", "Mautic", "Matomo", "Vaultwarden", "MariaDB"];
 const DATA_TYPES = [
@@ -323,6 +323,98 @@ export default function Exports() {
           </div>
         </div>
       </div>
+      {/* Business Kit PDF Export */}
+      <div style={{ marginTop: 28, maxWidth: 900 }}>
+        <div className="cyber-panel" style={{ padding: 20 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                <Brain size={16} color="var(--neon-purple)" />
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--neon-purple)", fontFamily: "'Share Tech Mono', monospace", letterSpacing: "0.08em" }}>BUSINESS KIT EXPORT</span>
+              </div>
+              <p style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'Share Tech Mono', monospace", margin: 0 }}>
+                Download all 30 generated business assets as a single JSON bundle
+              </p>
+            </div>
+            <BusinessKitDownload />
+          </div>
+        </div>
+      </div>
     </div>
+  );
+}
+
+function BusinessKitDownload() {
+  const [isDownloading, setIsDownloading] = useState(false);
+  const { data: runs = [] } = trpc.businessBuilder.listRuns.useQuery();
+  const latestRun = runs[0];
+  const { data: assets = [] } = trpc.businessBuilder.getAssets.useQuery(
+    { runId: latestRun?.runId || "" },
+    { enabled: !!latestRun?.runId }
+  );
+
+  const handleDownload = async () => {
+    if (!latestRun) {
+      toast.error("No Business Builder run found. Complete the interview first.");
+      return;
+    }
+    setIsDownloading(true);
+    try {
+      const kit = {
+        runId: latestRun.runId,
+        generatedAt: new Date().toISOString(),
+        status: latestRun.status,
+        promptsComplete: latestRun.promptsComplete,
+        promptsTotal: latestRun.promptsTotal,
+        assets: assets.map((a) => ({
+          id: a.promptId,
+          title: a.promptTitle,
+          category: a.category,
+          status: a.status,
+          content: (a as any).content || "",
+          deployedTo: (a as any).deployedTo || "none",
+        })),
+      };
+      const blob = new Blob([JSON.stringify(kit, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `launchops-business-kit-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`Business Kit exported — ${assets.filter(a => a.status === "complete").length} assets included`);
+    } catch (err: any) {
+      toast.error("Export failed: " + (err.message || "Unknown error"));
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  return (
+    <button
+      onClick={handleDownload}
+      disabled={isDownloading || !latestRun}
+      style={{
+        padding: "10px 18px",
+        borderRadius: 6,
+        border: `1px solid ${latestRun ? "var(--neon-purple)" : "var(--border-dim)"}`,
+        background: latestRun ? "rgba(180,0,255,0.08)" : "transparent",
+        color: latestRun ? "var(--neon-purple)" : "var(--text-muted)",
+        fontSize: 12,
+        fontFamily: "'Share Tech Mono', monospace",
+        letterSpacing: "0.08em",
+        cursor: isDownloading || !latestRun ? "not-allowed" : "pointer",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        transition: "all 0.15s",
+        whiteSpace: "nowrap",
+      }}
+    >
+      {isDownloading ? <Loader2 size={13} style={{ animation: "spin 1s linear infinite" }} /> : <Download size={13} />}
+      {isDownloading ? "PREPARING..." : latestRun ? `DOWNLOAD KIT (${assets.filter(a => a.status === "complete").length} ASSETS)` : "NO RUN YET"}
+    </button>
   );
 }

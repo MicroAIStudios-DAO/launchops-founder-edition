@@ -176,6 +176,7 @@ function StepWelcome({ onNext }: { onNext: () => void }) {
         <div style={{ fontSize: 9, color: B.cyan, letterSpacing: "0.14em", fontFamily: B.font, fontWeight: 700, marginBottom: 10 }}>WHAT'S COMING</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
           {[
+            { num: "0", label: "Business Builder OS — 30 AI prompts design your business", color: B.purple },
             { num: "1", label: "Tell Atlas about your business", color: B.blue },
             { num: "2", label: "Review your running infrastructure", color: B.purple },
             { num: "3", label: "Auto-configure all services", color: B.green },
