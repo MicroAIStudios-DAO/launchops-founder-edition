@@ -1,13 +1,18 @@
 import { trpc } from "@/lib/trpc";
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "wouter";
 import {
+  Activity,
+  CheckCircle2,
   Cpu,
   Database,
   ExternalLink,
   HardDrive,
   RefreshCw,
   Server,
+  ShieldAlert,
   Wifi,
+  XCircle,
 } from "lucide-react";
 
 const SERVICE_ICONS: Record<string, any> = {
@@ -36,6 +41,171 @@ function MetricBar({ value, max = 100, color }: { value: number; max?: number; c
         className="metric-bar-fill"
         style={{ width: `${pct}%`, background: color }}
       />
+    </div>
+  );
+}
+
+function StackHealthWidget({
+  services,
+  healthy,
+  warning,
+  down,
+  isLoading,
+}: {
+  services: any[];
+  healthy: number;
+  warning: number;
+  down: number;
+  isLoading: boolean;
+}) {
+  const globalColor =
+    down > 0
+      ? "var(--neon-red)"
+      : warning > 0
+      ? "var(--neon-yellow)"
+      : "var(--neon-green)";
+
+  const globalLabel =
+    isLoading && services.length === 0
+      ? "POLLING SERVICES..."
+      : down > 0
+      ? `${down} SERVICE${down > 1 ? "S" : ""} DOWN`
+      : warning > 0
+      ? `${warning} WARNING${warning > 1 ? "S" : ""}`
+      : "ALL SYSTEMS OPERATIONAL";
+
+  return (
+    <div
+      style={{
+        background: "rgba(0,0,0,0.40)",
+        border: "1px solid rgba(0,245,255,0.14)",
+        borderRadius: 12,
+        padding: "14px 20px",
+        marginBottom: 20,
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+      }}
+    >
+      {/* Header row */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 12,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <Activity size={13} style={{ color: "var(--neon-cyan)" }} />
+          <span
+            style={{
+              fontSize: 10,
+              fontFamily: "'Share Tech Mono', monospace",
+              color: "var(--neon-cyan)",
+              letterSpacing: "0.14em",
+            }}
+          >
+            STACK HEALTH
+          </span>
+        </div>
+
+        {/* Global status */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span
+            style={{
+              display: "inline-block",
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              background: globalColor,
+              boxShadow: `0 0 8px ${globalColor}`,
+              animation: "pulse-dot 2s infinite",
+            }}
+          />
+          <span
+            style={{
+              fontSize: 10,
+              fontFamily: "'Share Tech Mono', monospace",
+              color: globalColor,
+              letterSpacing: "0.1em",
+            }}
+          >
+            {globalLabel}
+          </span>
+        </div>
+      </div>
+
+      {/* Service pills */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {isLoading && services.length === 0
+          ? Array.from({ length: 6 }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  height: 30,
+                  width: 115,
+                  borderRadius: 6,
+                  background: "rgba(255,255,255,0.04)",
+                  animation: "pulse 1.5s infinite",
+                }}
+              />
+            ))
+          : services.map((row: any) => {
+              const pillColor =
+                row.status === "healthy"
+                  ? "var(--neon-green)"
+                  : row.status === "warning"
+                  ? "var(--neon-yellow)"
+                  : "var(--neon-red)";
+              const PillIcon =
+                row.status === "healthy"
+                  ? CheckCircle2
+                  : row.status === "warning"
+                  ? ShieldAlert
+                  : XCircle;
+              const accentColor = SERVICE_COLORS[row.service] || "var(--neon-cyan)";
+              return (
+                <div
+                  key={row.service}
+                  title={`CPU: ${(row.cpuPercent || 0).toFixed(1)}%  MEM: ${(row.memPercent || 0).toFixed(0)}%  Status: ${row.status}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    padding: "5px 11px",
+                    borderRadius: 7,
+                    background: `color-mix(in srgb, ${accentColor} 7%, transparent)`,
+                    border: `1px solid color-mix(in srgb, ${pillColor} 35%, transparent)`,
+                    cursor: "default",
+                    transition: "border-color 0.2s ease, background 0.2s ease",
+                  }}
+                >
+                  <PillIcon size={11} style={{ color: pillColor, flexShrink: 0 }} />
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontFamily: "'Outfit', sans-serif",
+                      fontWeight: 600,
+                      color: "var(--text-primary)",
+                      letterSpacing: "0.02em",
+                    }}
+                  >
+                    {row.service}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontFamily: "'Share Tech Mono', monospace",
+                      color: pillColor,
+                      marginLeft: 1,
+                    }}
+                  >
+                    {(row.cpuPercent || 0).toFixed(0)}%
+                  </span>
+                </div>
+              );
+            })}
+      </div>
     </div>
   );
 }
@@ -214,10 +384,20 @@ function ServiceCard({ row }: { row: any }) {
 }
 
 export default function Overview() {
+  const [, navigate] = useLocation();
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
+
+  // Auto-redirect first-time visitors to the onboarding wizard
+  useEffect(() => {
+    const done = localStorage.getItem("launchops_onboarding_complete");
+    if (!done) {
+      navigate("/onboarding");
+    }
+  }, []);
+
   const pollMutation = trpc.services.pollAll.useMutation();
   const latestQuery = trpc.services.latest.useQuery(undefined, {
-    refetchInterval: 6000,
+    refetchInterval: 30000,
   });
 
   useEffect(() => {
@@ -236,7 +416,7 @@ export default function Overview() {
 
   useEffect(() => {
     poll();
-    intervalRef.current = setInterval(poll, 8000);
+    intervalRef.current = setInterval(poll, 30000);
     return () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
@@ -250,7 +430,7 @@ export default function Overview() {
   return (
     <div style={{ padding: "24px 28px", minHeight: "100%" }}>
       {/* Page header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
         <div>
           <h1
             className="font-display"
@@ -266,7 +446,7 @@ export default function Overview() {
             SYSTEM OVERVIEW
           </h1>
           <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 4, fontFamily: "'Share Tech Mono', monospace" }}>
-            LAST SYNC: {lastRefresh.toLocaleTimeString()} · AUTO-REFRESH 8s
+            LAST SYNC: {lastRefresh.toLocaleTimeString()} · AUTO-REFRESH 30s
           </p>
         </div>
         <button
@@ -279,6 +459,15 @@ export default function Overview() {
           REFRESH
         </button>
       </div>
+
+      {/* ── Stack Health Widget ──────────────────────────────────────── */}
+      <StackHealthWidget
+        services={services}
+        healthy={healthy}
+        warning={warning}
+        down={down}
+        isLoading={latestQuery.isLoading}
+      />
 
       {/* SEO H2 — visually hidden but present for crawlers and accessibility */}
       <h2

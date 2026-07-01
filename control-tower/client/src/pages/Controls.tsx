@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import {
   AlertTriangle,
   Bot,
@@ -70,7 +71,62 @@ const ACTION_CONFIG: Record<Action, { label: string; color: string; icon: any; d
   },
 };
 
+// Per-service re-run button component
+function RerunServiceButton({ svc }: { svc: { id: string; label: string; color: string; proc: string } }) {
+  const [status, setStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [log, setLog] = useState("");
+  const setupMutation = trpc.setup.runFullSetup.useMutation();
+
+  const run = async () => {
+    setStatus("running");
+    setLog("");
+    try {
+      const res = await setupMutation.mutateAsync({
+        masterPassword: "launchops",
+        email: "founder@launchops.local",
+        founderName: "Founder",
+        siteUrl: window.location.origin,
+      });
+      const svcResult = (res.results as any)[svc.id];
+      if (svcResult?.success) {
+        setStatus("done");
+        setLog(svcResult.message || "Configured successfully");
+      } else {
+        setStatus("error");
+        setLog(svcResult?.message || "Setup failed");
+      }
+    } catch (err: any) {
+      setStatus("error");
+      setLog(err.message || "Unknown error");
+    }
+  };
+
+  const statusColor = status === "done" ? "var(--neon-green)" : status === "error" ? "var(--neon-red)" : status === "running" ? svc.color : "var(--text-muted)";
+
+  return (
+    <div style={{ padding: "12px 14px", background: "rgba(255,255,255,0.02)", border: `1px solid ${svc.color}25`, borderRadius: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: log ? 8 : 0 }}>
+        <span style={{ fontSize: 12, fontFamily: "'Share Tech Mono', monospace", color: svc.color, fontWeight: 600 }}>{svc.label}</span>
+        <button
+          onClick={run}
+          disabled={status === "running"}
+          style={{ padding: "4px 10px", borderRadius: 4, fontSize: 10, fontFamily: "'Share Tech Mono', monospace", cursor: status === "running" ? "not-allowed" : "pointer", border: `1px solid ${svc.color}60`, background: "transparent", color: svc.color, display: "flex", alignItems: "center", gap: 4, opacity: status === "running" ? 0.7 : 1 }}
+        >
+          <RefreshCw size={10} style={{ animation: status === "running" ? "spin 1s linear infinite" : "none" }} />
+          {status === "running" ? "RUNNING" : status === "done" ? "RE-RUN" : status === "error" ? "RETRY" : "RUN"}
+        </button>
+      </div>
+      {log && (
+        <div style={{ fontSize: 10, fontFamily: "'Share Tech Mono', monospace", color: statusColor, lineHeight: 1.4, wordBreak: "break-all" }}>
+          {status === "done" ? "✓ " : status === "error" ? "✗ " : ""}{log.slice(0, 100)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Controls() {
+  const [, navigate] = useLocation();
   const [confirm, setConfirm]               = useState<ConfirmDialog | null>(null);
   const [pendingActions, setPendingActions]  = useState<Set<string>>(new Set());
   const [actionResults, setActionResults]    = useState<Record<string, { success: boolean; detail: string; ts: Date }>>({});
@@ -735,6 +791,38 @@ export default function Controls() {
             )}
           </div>
         )}
+      </div>
+
+      {/* ── Re-run Setup Panel ─────────────────────────────────────────── */}
+      <div className="cyber-panel" style={{ marginTop: 24, padding: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <RefreshCw size={16} style={{ color: "var(--neon-cyan)" }} />
+            <span className="font-display" style={{ fontSize: 14, fontWeight: 700, color: "var(--neon-cyan)", letterSpacing: "0.08em" }}>RE-RUN SETUP</span>
+          </div>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'Share Tech Mono', monospace" }}>Re-configure individual services without re-running the full wizard</span>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10, marginBottom: 16 }}>
+          {[
+            { id: "wordpress",   label: "WordPress",   color: "#0a84ff",  proc: "setup.setupWordPress" },
+            { id: "matomo",      label: "Matomo",      color: "#00ff88",  proc: "setup.setupMatomo" },
+            { id: "suitecrm",    label: "SuiteCRM",    color: "#00f5ff",  proc: "setup.setupSuiteCRM" },
+            { id: "mautic",      label: "Mautic",      color: "#bf5af2",  proc: "setup.setupMautic" },
+          ].map((svc) => (
+            <RerunServiceButton key={svc.id} svc={svc} />
+          ))}
+        </div>
+        <div style={{ paddingTop: 14, borderTop: "1px solid var(--border-dim)", display: "flex", alignItems: "center", gap: 12 }}>
+          <button
+            className="btn-cyber"
+            onClick={() => { localStorage.removeItem("launchops_onboarding_complete"); navigate("/onboarding"); }}
+            style={{ borderColor: "var(--neon-purple)", color: "var(--neon-purple)", display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <Zap size={12} />
+            RE-RUN FULL ONBOARDING WIZARD
+          </button>
+          <span style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'Share Tech Mono', monospace" }}>Clears onboarding state · restarts guided setup from Step 1</span>
+        </div>
       </div>
 
       {/* Confirmation Dialog */}

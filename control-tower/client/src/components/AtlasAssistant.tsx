@@ -73,10 +73,11 @@ function MessageBubble({ msg }: { msg: Message }) {
             alignItems: "center",
             gap: 5,
             marginBottom: 4,
-            fontSize: 9,
-            color: "var(--neon-cyan)",
-            fontFamily: "'Share Tech Mono', monospace",
-            letterSpacing: "0.1em",
+          fontSize: 9,
+          color: "var(--neon-cyan)",
+          fontFamily: "'Outfit', system-ui, sans-serif",
+          fontWeight: 600,
+          letterSpacing: "0.12em",
           }}
         >
           <Bot size={9} /> ATLAS
@@ -95,10 +96,11 @@ function MessageBubble({ msg }: { msg: Message }) {
           border: isUser
             ? "1px solid rgba(0,245,255,0.22)"
             : "1px solid rgba(255,255,255,0.08)",
-          fontSize: 12,
+          fontSize: 13,
           color: "var(--text-primary)",
-          fontFamily: "'Share Tech Mono', monospace",
-          lineHeight: 1.7,
+          fontFamily: "'Outfit', system-ui, sans-serif",
+          fontWeight: 400,
+          lineHeight: 1.65,
           whiteSpace: "pre-wrap",
           wordBreak: "break-word",
         }}
@@ -109,7 +111,7 @@ function MessageBubble({ msg }: { msg: Message }) {
         style={{
           fontSize: 9,
           color: "var(--text-muted)",
-          fontFamily: "'Share Tech Mono', monospace",
+          fontFamily: "'Outfit', system-ui, sans-serif",
           marginTop: 3,
         }}
       >
@@ -212,16 +214,16 @@ export default function AtlasAssistant() {
           alignItems: "center",
           justifyContent: "center",
           cursor: "pointer",
-          boxShadow: "0 0 0 1px rgba(0,245,255,0.08) inset, 0 0 20px rgba(0,245,255,0.2), 0 4px 20px rgba(0,0,0,0.5)",
+          boxShadow: "var(--glow-primary), 0 4px 20px rgba(0,0,0,0.5)",
           transition: "all 0.2s ease",
           zIndex: 1000,
         }}
         onMouseEnter={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 30px rgba(0,245,255,0.4), 0 4px 20px rgba(0,0,0,0.4)";
-          (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.05)";
+          (e.currentTarget as HTMLButtonElement).style.boxShadow = "oklch(75% .15 195 / 0.35) 0 0 30px, 0 4px 20px rgba(0,0,0,0.4)";
+          (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.06)";
         }}
         onMouseLeave={(e) => {
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 0 20px rgba(0,245,255,0.2), 0 4px 20px rgba(0,0,0,0.4)";
+          (e.currentTarget as HTMLButtonElement).style.boxShadow = "var(--glow-primary), 0 4px 20px rgba(0,0,0,0.5)";
           (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)";
         }}
         title="Ask Atlas"
@@ -256,8 +258,8 @@ export default function AtlasAssistant() {
         background: "rgba(8, 10, 18, 0.82)",
         backdropFilter: "blur(28px) saturate(160%) brightness(0.85)",
         WebkitBackdropFilter: "blur(28px) saturate(160%) brightness(0.85)",
-        border: "1px solid rgba(0,245,255,0.18)",
-        boxShadow: "0 0 0 1px rgba(0,245,255,0.06) inset, 0 0 40px rgba(0,245,255,0.08), 0 24px 80px rgba(0,0,0,0.75), 0 8px 32px rgba(0,0,0,0.6)",
+        border: "1px solid oklch(75% .15 195 / 0.2)",
+        boxShadow: "oklch(75% .15 195 / 0.06) 0 0 0 1px inset, var(--glow-primary), 0 24px 80px rgba(0,0,0,0.75), 0 8px 32px rgba(0,0,0,0.6)",
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
@@ -273,7 +275,7 @@ export default function AtlasAssistant() {
           justifyContent: "space-between",
           padding: "12px 16px",
           borderBottom: minimized ? "none" : "1px solid rgba(255,255,255,0.06)",
-          background: "rgba(0,245,255,0.05)",
+          background: "oklch(75% .15 195 / 0.04)",
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
           cursor: minimized ? "pointer" : "default",
@@ -287,8 +289,8 @@ export default function AtlasAssistant() {
               width: 28,
               height: 28,
               borderRadius: 7,
-              background: "rgba(0,245,255,0.1)",
-              border: "1px solid rgba(0,245,255,0.25)",
+              background: "oklch(75% .15 195 / 0.1)",
+              border: "1px solid oklch(75% .15 195 / 0.28)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -299,16 +301,16 @@ export default function AtlasAssistant() {
           <div>
             <div
               style={{
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 700,
                 color: "var(--neon-cyan)",
-                fontFamily: "'Orbitron', sans-serif",
-                letterSpacing: "0.06em",
+                fontFamily: "'Outfit', system-ui, sans-serif",
+                letterSpacing: "0.04em",
               }}
             >
               ATLAS
             </div>
-            <div style={{ fontSize: 9, color: "var(--neon-green)", fontFamily: "'Share Tech Mono', monospace" }}>
+            <div style={{ fontSize: 9, color: "var(--neon-green)", fontFamily: "'Outfit', system-ui, sans-serif", fontWeight: 500 }}>
               ● ONLINE · 23 AGENTS
             </div>
           </div>
@@ -378,21 +380,22 @@ export default function AtlasAssistant() {
                   style={{
                     padding: "4px 10px",
                     borderRadius: 5,
-                    border: "1px solid rgba(0,245,255,0.15)",
-                    background: "rgba(0,245,255,0.04)",
+                    border: "1px solid oklch(75% .15 195 / 0.15)",
+                    background: "oklch(75% .15 195 / 0.04)",
                     color: "var(--text-muted)",
-                    fontFamily: "'Share Tech Mono', monospace",
+                    fontFamily: "'Outfit', system-ui, sans-serif",
+                    fontWeight: 500,
                     fontSize: 10,
                     cursor: "pointer",
                     transition: "all 0.15s",
                   }}
                   onMouseEnter={(e) => {
                     (e.currentTarget as HTMLButtonElement).style.color = "var(--neon-cyan)";
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,245,255,0.3)";
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = "oklch(75% .15 195 / 0.35)";
                   }}
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLButtonElement).style.color = "var(--text-muted)";
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(0,245,255,0.15)";
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = "oklch(75% .15 195 / 0.15)";
                   }}
                 >
                   {prompt}
@@ -427,12 +430,13 @@ export default function AtlasAssistant() {
                 background: "rgba(255,255,255,0.06)",
                 backdropFilter: "blur(8px)",
                 WebkitBackdropFilter: "blur(8px)",
-                border: "1px solid rgba(0,245,255,0.18)",
+                border: "1px solid oklch(75% .15 195 / 0.2)",
                 borderRadius: 8,
                 padding: "8px 12px",
                 color: "var(--text-primary)",
-                fontFamily: "'Share Tech Mono', monospace",
-                fontSize: 12,
+                fontFamily: "'Outfit', system-ui, sans-serif",
+                fontWeight: 400,
+                fontSize: 13,
                 outline: "none",
                 resize: "none",
                 lineHeight: 1.5,

@@ -69,3 +69,31 @@
 - [x] Change "Setup Guide" sidebar label to "Launch Wizard"
 - [x] Add step preview under the launch button so users see what's coming
 - [x] Add "Business Type" selector in onboarding step 2 or 3 (Consultant, Course creator, Local service business, Real estate, Photographer/creative, Agency, Custom)
+
+## ProofGuard Attestation Integration & business_type Persistence (Phase 6)
+
+- [x] Add business_type column to founder_profiles table (migration)
+- [x] Update onboarding backend to persist business_type selection
+- [x] Update onboarding frontend to send business_type to backend
+- [x] Build ProofGuard attestation client service (server/proofguard-client.ts)
+- [x] Integrate attestation calls into pipeline agent execution flow
+- [x] Update ProofGuard page UI to show live attestation feed (CQS scores, flagged items, badges)
+- [x] Add PROOFGUARD_API_URL and PROOFGUARD_API_KEY env vars
+
+## Business Builder OS Integration (Phase 7 — Major Expansion)
+
+- [x] Add build_spec, business_interview_answers, generated_assets tables to schema + migrate
+- [x] Build businessBuilderRouter with interview, generateBuildSpec, runPromptPack, getAssets procedures
+- [x] Build 30-prompt automation engine (server/business-builder-engine.ts) — sequential LLM runner
+- [x] Automate Mautic email copy generation (prompt 9 + 13 → Mautic API)
+- [x] Automate paid ads plan generation (prompt 20 → stored asset)
+- [x] Automate legal docs generation (prompt 17 → stored asset)
+- [x] Automate cold outbound sequences (prompt 21 → Mautic sequences)
+- [x] Automate SEO content calendar (prompt 19 → WordPress draft posts via WP-CLI)
+- [x] ProofGuard attestation on every Business Builder prompt run
+- [x] Build BusinessBuilder.tsx page — interview UI, streaming output, assets library
+- [x] Add Business Builder nav item to ControlTowerLayout sidebar
+- [x] Wire Business Builder as Step 0 in Launch Wizard (pre-pipeline interview)
+- [x] Update Atlas system prompt to include Build Spec context
+- [x] Update Pipeline Monitor to show Business Builder as Stage 0
+- [x] Add PDF export of full business kit from Exports page

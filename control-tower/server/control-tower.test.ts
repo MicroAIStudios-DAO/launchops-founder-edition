@@ -250,11 +250,12 @@ describe("services.pollAll", () => {
 });
 
 describe("services.control", () => {
-  it("calls insertAuditEvent with correct fields on restart", async () => {
+  it("calls insertAuditEvent with correct fields on restart (open access — no auth required)", async () => {
     const { insertAuditEvent } = await import("./db");
     vi.mocked(insertAuditEvent).mockClear();
 
-    const caller = appRouter.createCaller(makeAuthCtx());
+    // Founder Edition: control is open, no auth required
+    const caller = appRouter.createCaller(makePublicCtx());
     const result = await caller.services.control({ service: "WordPress", action: "restart" });
 
     expect(result.success).toBe(true);
@@ -264,8 +265,8 @@ describe("services.control", () => {
     expect(call.service).toBe("WordPress");
     expect(call.action).toBe("restart");
     expect(call.outcome).toBe("success");
-    expect(call.userName).toBe("B");
-    expect(call.userId).toBe(1);
+    expect(call.userName).toBe("founder");
+    expect(call.userId).toBeUndefined();
   });
 
   it("throws for unknown service and does not call insertAuditEvent", async () => {
